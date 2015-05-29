@@ -1,6 +1,7 @@
 var mongoose = require("mongoose");
-var userSecurity = require("./UserCollection.js");
-var userDetails = require("./UserDetailsCollection.js");
+var userSecurity = require("./Modules/UserSecurityCollection.js");
+var userDetails = require("./Modules/UserDetailsCollection.js");
+var relationDetails = require("./Modules/RelationCollection.js");
 var logger = require("./logger");
 //mongo db connection url
 var mongoUri = 'mongodb://localhost:27017/famhook';
@@ -19,6 +20,7 @@ try{
 	var pLastName = "Hook";
 	var pPassword = "p@ssw0rd";	
 	var pIsSuperUser = false;
+	var globalUserId, globalFatherId;
 	//console.log("line 22");
 	//Read the arguments and set the user values. If arg is blank then set default user values set above.
 	process.argv.forEach(function (val, index, array) 
@@ -49,8 +51,21 @@ try{
 	//console.log("line 48");
 	//connect mongo db using mongoose
 	mongoose.connect(mongoUri, options);
-	//console.log("line 51");
+	//Add Superuser
 	CreateCollectionsAndRecord(true, pUserId, pUserName, pPassword, pFirstName, pLastName, pIsSuperUser);
+	var levelOneUser = globalUserId;	
+	//Add relation i.e. Father
+	var pUserId = 2;
+	var pUserName = "vicky.roberts@gmail.com";
+	var pFirstName = "Father";
+	var pLastName = "Hook";
+	var pPassword = "p@ssw0rd";	
+	var pIsSuperUser = false;
+	CreateCollectionsAndRecord(true, 2, pUserName, pPassword, pFirstName, pLastName, pIsSuperUser);
+	var levelTwoUser = globalUserId;
+	//Create relationship record.
+	CreateRelation(levelOneUser, levelTwoUser);
+	
 }
 catch(err)
 {
@@ -69,6 +84,7 @@ function CreateCollectionsAndRecord(addDefaultUser, pUserId, pUserName, pPasswor
 			var appendToExternalId = date.getDate()+""+date.getMonth()+""+date.getFullYear();
 			secreateInfo.userId = pUserId;
 			secreateInfo.extId = appendToExternalId + "" +secreateInfo.userId;
+			globalUserId = 	secreateInfo.extId;					
 			//Date is not passed as default date.now will be set for password object.
 			secreateInfo.passwords = {password:pPassword};
 			//console.log("line 73");
@@ -119,6 +135,31 @@ function CreateUserDetails(pUserId, pUserName, pPassword, pFirstName, pLastName,
 			{
 				logger.debug("User Details saved successfully");									
 				console.log("User record saved successfully");	
+				
+			}
+	});	
+}
+
+function CreateRelation(forUserId, withUserId)
+{
+	//Object of Use module.
+	var relationInfo = new relationDetails();
+	
+	relationInfo.hooksForUserId = forUserId;	
+	relationInfo.family = [{userId:forUserId,archivedUserId:0,treeLevel:2,relation:"Self",color:"Green"},{userId:withUserId,archivedUserId:0,treeLevel:1,relation:"Father",color:"Green"}];	
+	relationInfo.friends = [{userId:withUserId,archivedUserId:0,treeLevel:1,relation:"Close Friend",color:"Green"}];
+	relationInfo.organization = [{userId:withUserId,archivedUserId:0,treeLevel:1,relation:"CEO",color:"Green"}];	
+	relationInfo.save(function(err)
+	{
+			if(err)
+			{
+				console.log("Error while saving" + err);
+				logger.debug("Error while saving user relations" + err);
+			}
+			else
+			{
+				logger.debug("User Relation saved successfully");									
+				console.log("User relation saved successfully");	
 				
 			}
 	});	
