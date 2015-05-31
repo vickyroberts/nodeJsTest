@@ -16,5 +16,5 @@ var activityCollection = new activitySchema({
 	createdDate: {type:Date, default:Date.now}
 });
 
-module.exports = mongoose.model('ActivityLogCollection',activityCollection)
+module.exports = mongoose.model('ActivityLogCollection',activityCollection, 'ActivityLogCollection')
 

@@ -6,11 +6,11 @@ var userSecSchema = mongoose.Schema;
 //Create the usersecurity collection that will save the user credential details.
 //This function will also add a default superuser entry.	
 var securedUserSchema = new userSecSchema({
-	userId: Number,
-	extId: Number,
+	userId: {type:Number, index:true},
+	extId: {type:Number, index:true},
 	passwords: [{password:String,passwordCreatedDate:{type:Date, default:Date.now}}],
 	createdDate: {type:Date, default:Date.now}
 });
 
-module.exports = mongoose.model('UserSecurity',securedUserSchema)
+module.exports = mongoose.model('UserSecurity',securedUserSchema,'UserSecurityCollection')
 
