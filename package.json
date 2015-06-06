@@ -13,8 +13,12 @@
     "module-name": "./bin/module-name"
   },
   "dependencies": {
+    "bcrypt-nodejs": "0.0.3",
+    "body-parser": "^1.12.4",
     "fs": "0.0.2",
     "node-inspector": "^0.10.1",
+    "passport": "^0.2.2",
+    "passport-http": "^0.2.2",
     "path": "^0.11.14",
     "url": "^0.10.3",
     "winston": "^1.0.0"

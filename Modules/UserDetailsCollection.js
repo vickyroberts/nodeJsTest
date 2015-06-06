@@ -6,7 +6,6 @@ var userSchema = mongoose.Schema;
 //This function will also add a default superuser entry.	
 var userDetailsSchema = new userSchema({
 	userId: {type: Number, required:true, unique:true, index:true},	
-	userName: {type: String, required:true, unique:true, index:true},
 	firstName: {type: String, required:true, index:true},
 	lastName: {type: String, required:true, index:true},
 	address: [{addressLine:String,city:String,state:String,country:String,isCurrentAddress:Boolean}],
@@ -20,6 +19,8 @@ var userDetailsSchema = new userSchema({
 	userTagValues:{qualification:[String],profession:String,skills:[String],jobLocationPref:[String],matriExpectedQualification:[String],matriExpectedJob:[String],matriExpectedPreferedLocation:[String]},
 	groupsTaggedTo:[Number],
 	isSuperUser:Boolean,
+	viewJobsOpp:{type:Boolean, default:false},
+	viewMatrimonialOpp:{type:Boolean, default:false},
 	status:{type:Boolean, default:true},
 	createdDate: {type:Date, default:Date.now}
 });

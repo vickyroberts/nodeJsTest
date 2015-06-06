@@ -1,4 +1,5 @@
 var mongoose = require("mongoose");
+var bcrypt = require('bcrypt-nodejs');
 var userSecurity = require("./Modules/UserSecurityCollection.js");
 var userDetails = require("./Modules/UserDetailsCollection.js");
 var relationDetails = require("./Modules/RelationCollection.js");
@@ -103,7 +104,9 @@ function CreateCollectionsAndRecord(addDefaultUser, pUserId, pUserName, pPasswor
 			var appendToExternalId = date.getDate()+""+date.getMonth()+""+date.getFullYear();
 			secreateInfo.userId = pUserId;
 			secreateInfo.extId = appendToExternalId + "" +secreateInfo.userId;
-			globalUserId = 	secreateInfo.extId;					
+			globalUserId = 	secreateInfo.extId;
+			secreateInfo.password = HashKeywords(pPassword);	
+			secreateInfo.userName = pUserName;	
 			//Date is not passed as default date.now will be set for password object.
 			secreateInfo.passwords = {password:pPassword};
 			//console.log("line 73");
@@ -132,8 +135,7 @@ function CreateUserDetails(pUserId, pUserName, pPassword, pFirstName, pLastName,
 	//Object of Use module.
 	var userInfo = new userDetails();
 		
-	userInfo.userId = pUserId;	
-	userInfo.userName = pUserName;
+	userInfo.userId = pUserId;
 	userInfo.firstName = pFirstName;
 	userInfo.lastName = pLastName;	
 	userInfo.address = {addressLine:"Lullanagar", city:"Pune", state:"Maharashtra",country:"India",isCurrentAddress:true};	
@@ -240,5 +242,23 @@ function CreateRelation(forUserId, withUserId)
 				
 			}
 	});	
+}
+
+//This function creates a hash of input values required for Bcrypt.
+function HashKeywords(input)
+{		
+	//Password changed so we need to hash it  
+	  bcrypt.genSalt(5, function(err, salt) {
+	    if (err) {Console.log("error while creating hash for "+ input);};
+	
+	  hashedVal = bcrypt.hash(input, salt, null, function(err, hash) 
+	    {
+	    if (err)
+	    { return "";}
+	    
+	    var hashedValue = hash;
+		return hashedValue;
+	  });
+	  });
 }
 

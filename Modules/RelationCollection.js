@@ -6,7 +6,7 @@ var relationSchema = mongoose.Schema;
 //This function will also add a default superuser entry.	
 var relations = new relationSchema({
 	hooksForUserId: {type: Number, required:true, unique:true, index:true},	
-	family: [{userId:Number,archivedUserId:Number,treeLevel:Number,relation:String,color:String}],
+	family: [{userId:Number,archivedUserId:Number,treeLevel:Number,relation:String,color:String,approved:{type:Boolean,default:true}}],
 	friends: [{userId:Number,treeLevel:Number,relation:String,color:String}],
 	organization: [{userId:Number,treeLevel:Number,relation:String,color:String}],	
 	status:{type:Boolean, default:true},
