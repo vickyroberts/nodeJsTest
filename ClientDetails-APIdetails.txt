@@ -1,0 +1,86 @@
+{
+    "message": "Client added !",
+    "data": {
+        "__v": 0,
+        "userId": "55732ab3ac92f5f826a4440a",
+        "secret": "Test123",
+        "id": "Test123",
+        "name": "adminapp",
+        "_id": "5576cdf3c62046d02aa9530b"
+    }
+}
+
+http://localhost:3000/api/oauth2/authorize?client_id=Test123&response_type=code&redirect_uri=http://localhost:3000
+Bearer RdAZyLinRa6UlkavZ3DTe
+
+
+$2a$05$JFAcvLEepZaZn5h4R41riueht79UCG2dg8Lm1HIx9IAH4qezhvsoa
+
+Activities as Priority
+1. Activity / Logging for each user
+2. Authorization mechanism
+3. Globalization and return values from all methods.
+4. How to restrict token from accessing all API methods. Scope defined in Auth.js how it works.
+5. Session management.
+
+1, 2, 3 - 18th June
+7, 8, 9 - 20th June
+4, 5, 6, 11 - 21st June
+10, 12 - 23rd June
+13, 14, 15 - 26th June 
+
+
+1. User Authentication
+    Post userlogin details - Firstname, lastname, username and password
+2. New User Registration
+      Post and Get userlogin details - Firstname, lastname, username and password  
+3. User Profile setting -
+      Post and Get   
+      Personal Details - City, Country, profile pic
+      Other details - Educational - School / College, Class / Degree, Location 
+                      Professional - Company, Designation, Location            
+4. Get public posts from fam, frnds and groups. Get posts targetted to logged in users. Get post of groups in which user is member.
+   - author id, floatType, details of float as per type.
+     Filter 1: Get all posts from user friends + family + Group in which user is tagged.
+     Filter 2 - Get all private posts posted by user friends, family and group targetted to user. 
+5. Get fam, friends and group status i.e. new message, new member joined.
+    - Get updates of friends i.e. new family members added in friends tree, new friends added and new group joined by friend / family.
+6. Get all floats user has done with status like views, wows etc.
+    - Get all posts done by user details with total number of views and wows.
+    - Post floats for "Message","News","Invitation","Vote","Job","MarriageProposal"
+    - Update float / post and upload picture.
+    - Delete posts with id.
+    - Post / Update reply on float / post.
+    - Post / Update wow on float / post.
+    - Post Vote for Vote float.     
+7. Get family tree for logged in user filter by user id. Also tree of end node.
+    - Get all details of the user from relationhool collection and matching userid info from userdetailscollection
+8. Add fam, friend to tree. Handle for organization.
+    - Search - Get users with specified name from user details.
+    - This is me Search - Update records for user claiming "This is me". After approval update appropriate records.
+    - Add node / relation
+    - Post Relationhook collection with new relation / hook.
+    - Update relationhook collection with updated relation.
+    - Delete 
+9. Other members adding their self in your (logged in users) tree.
+    - Add entry in notification and in 2 relationhook documents who + whom.
+    - On approving the hook. Update the relationhook status to add the user in ur tree.
+10. Algorithm to filter all matching jobs and marriage match
+    - Check Match
+    - Jobs: 
+        1 Filter - Filter all jobs posting done by usertype org + job keywords matching users skill keywords + number of years of exp + location
+        2 Filter - Filter all jobs posting done by usertype org + job keywords matching users skill keywords + number of years of exp
+        3 Filter - Filter all jobs posting done by usertype org + job keywords matching users skill keywords
+        Unique matches will be displayed.
+    - Marriage: 
+        1 Filter - Filter all matches posted for opposite gender + (religion + caste) if not no-bar + qualification + job + location.
+        2 Filter - Filter all matches posted for opposite gender + (religion + caste) if not no-bar + qualification + job
+        3 Filter - Filter all matches posted for opposite gender + (religion + caste) if not no-bar + qualification 
+        4 Filter - Filter all matches posted for opposite gender + (religion + caste) if not no-bar
+        Unique matches will be displayed.
+ 11. Add all activities in notification collection. Show notification flag.
+ 12. Add / Post group details with name, type (commu, prof, hobbies), desc, picture etc.
+ 13. Update group details.
+ 14. Hook fam or friends to the group. Update.
+ 15. Post message for group. 
+    

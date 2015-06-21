@@ -1,0 +1,4 @@
+1. If user secreat is created and userdetails is not created handle that.
+2. Passwords hashing: Callback process
+3. Error handling.
+Handle mongo connection error

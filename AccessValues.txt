@@ -1,0 +1,27 @@
+{
+    "message": "Client added !",
+    "data": {
+        "__v": 0,
+        "userId": "55732ab3ac92f5f826a4440a",
+        "secret": "FamAdminId",
+        "id": "FamAdminId",
+        "name": "webadmin",
+        "_id": "557b18f90483260833128a9b"
+    }
+}
+
+http://localhost:3000/api/oauth2/authorize?client_id=FamAdminId&response_type=code&redirect_uri=http://localhost:3000
+
+
+jwbGyrtkxG0HYqUD
+
+{
+    "access_token": {
+        "__v": 0,
+        "value": "RdAZyLinRa6UlkavZ3DTe",
+        "clientId": "557b18f90483260833128a9b",
+        "userId": "55732ab3ac92f5f826a4440a",
+        "_id": "557b1f10d328e1700caf7ac5"
+    },
+    "token_type": "Bearer"
+}

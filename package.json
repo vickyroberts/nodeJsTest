@@ -14,11 +14,16 @@
   },
   "dependencies": {
     "bcrypt-nodejs": "0.0.3",
+    "bluebird": "^2.9.30",
     "body-parser": "^1.12.4",
+    "ejs": "^2.3.1",
+    "express-session": "^1.11.2",
     "fs": "0.0.2",
     "node-inspector": "^0.10.1",
+    "oauth2orize": "^1.0.1",
     "passport": "^0.2.2",
     "passport-http": "^0.2.2",
+    "passport-http-bearer": "^1.0.1",
     "path": "^0.11.14",
     "url": "^0.10.3",
     "winston": "^1.0.0"

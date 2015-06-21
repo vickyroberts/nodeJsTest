@@ -1,0 +1,43 @@
+UserSecurity Collection:
+[{"userId":1, "externalUId":"1", "password":"p@ssw0rd","createdDate":""}]
+UserDetails Collection:
+[{"userName":"test123","userId":1,"firstName":"Raj","lastName":"Sharma",
+"address":[{"addressLine":"Lullanagar","city":"Pune","state":"Maharashtra","country":"India","isCurrentAddress":true}],
+"accountType":"Organization","education":[{"highestDegree":"MCA","college":"Bharti","location":"Pune"}],
+"userTagValues":{"qualification":[],"skills":[],"jobLocationPref":[],"matriExpectedQualification":[],"matriExpectedJob":[],"matriExpectedPreferedLocation":[]},
+"groupsTaggedTo":["groupId":1,"groupId":2],
+"createdDate":"","status":"Active","updatedDate":{}}]
+
+RelationHooks Collection:
+{"hooksForUId":1,"family":[{"userId":2,"treelevel":2,"relation":"Father","color":"green"}],
+"friends":[{"userId":3,"treelevel":5,"relation":"Close Friend","color":"green"}],
+"organization":[{"userId":7,"treelevel":1,"relation":"Director","color":"green"}]}
+
+Floats Collection:
+{"floatId":1,"floatType":"Invitation","authorId":1,"title":"","description":"","messageFiles":[{"fileName":"","filePath":"","fileType":""}],
+"newsReferences":[],"vote":{"options":[{"title":"","picture":{"fileName":"","filePath":"","fileType":""},"votesUId":[1,2]}]},
+"invitation":{"date":"","venue":"","picture":[{"fileName":"","filePath":"","fileType":""}],"Aknowledgement":[{"userId":1,"available":"Yes/No"}]},
+"jobProfile":{"qualification":["tag1","tag2"],"skills":["tag1","tag2"],"preferredLocation":["tag1","tag2"],"experienceYears":1,
+"documents":[{"fileName":"","filePath":"","fileType":""}],"hideFrom":["company1","company2"]}
+"matrimonial":{"qualification":["tag1","tag2"],"job":"","location":"Pune","expectedQualification":["BE","Lawyer"],"expectedJob":["Teacher","IT engineer"],
+"preferredCity":["Pune","Delhi"],"documents":[{"fileName":"","filePath":"","fileType":""}]},
+"totalViews":3,"viewUserId":[1,2,3],"wows":2,"wowsUserId":[1,2],"createdDate":Date,"status":"Active","isPublic":false,
+"sharedWithUserId":[2,3,4],"sharedWithGroupId":[1,2],"comments":[{"commentId":1,"body":"","date":Date,"authorId":3}]}
+
+Group Collection:
+{"groupId":1,"groupName":"","groupType":"Community","description":"",
+"picture":[{"fileName":"","filePath":"","fileType":""}],"userId":[1,2,3],"createdDate":Date,"status":"Active"}
+
+ActivityLogs Collection:
+{"logId":1,"activityType":"NewUser","createdDate":Date,"logForUserId":1,"activityStatus":"Success","elapsedTime":"1 sec","sendNotificationToUserId":[2,3]}
+
+Masters Collection:
+{"relation":{"personal":["Father", "Mother","Sister","Bother","Wife","Son","Daughter","Mother-In-Law",
+"Father-In-Law","Step Mother","Step Father","Cousin Brother - Father","Cousin Sister - Father","Cousin Brother - Mother","Cousin Sister - Mother"],
+"organization":["Director", "Managing Director", "CEO", "COO", "CFO", "Board Members", "Trustee","President", "Vice-President"]},
+"floatType":["Message","News","Invitation","Vote","Job","MarriageProposal"],
+"groupType":["Community","Professional","Hobbies"],
+"activityType":["NewUser","MemberAdded","MessageSent","YourProfileViewed","InterestedInYouJobProfile","InterestedInYou","MatchingYourCriteria"],
+"country":[{"countryId":1,"countryName":"India"}],"state":[{"stateId":1,"stateName":"Maharashtra","countryId":1}],
+"city":[{"cityId":1,"cityName":"Pune","stateId":1,"countryId":1}],"accountType":["Organization","Personal"],
+"qualificationTags":[],"skillsTags":[],"jobLocationPrefTags":[],"matriExpectedQualificationTags":[],"matriExpectedJobTags":[],"matriExpectedPreferedLocationTags":[]}

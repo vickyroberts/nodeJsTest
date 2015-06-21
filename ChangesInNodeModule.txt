@@ -1,0 +1,26 @@
+1. Auth.js added flag to get req obj. passport.use(new bearerStrategy({passReqToCallback:true},
+
+2. Followin changes in Mongoose module H:\TestNodeProject\node_modules\mongoose\lib\document.js
+    
+Added a flag for condition on custom filter.
+Document.prototype.update = function update () {
+  
+  var addCustomId = false;  
+  var newarguments = [];
+  for (var index = 0; index < arguments.length; index++) {
+    if(arguments[index] && arguments[index].customIdCondition)
+    {
+      addCustomId = arguments[index].customIdCondition;      
+    }    
+    else
+    {
+      newarguments.push(arguments[index]);
+    }
+  }  
+  var args = utils.args(newarguments);
+  if(!addCustomId)
+  {  
+    args.unshift({_id: this._id});
+  }
+  return this.constructor.update.apply(this.constructor, args);
+}
