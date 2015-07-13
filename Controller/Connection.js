@@ -1,5 +1,8 @@
 var mongoose = require('mongoose');
+var pg = require('pg');
 var logger = require("../logger");
+
+var pgConString = "postgres://famhook:famhook21@localhost:5444/famhook";
 
 //mongo db connection url
 var mongoUri = 'mongodb://localhost:27017/famhook';
@@ -25,3 +28,28 @@ mongoose.connect(mongoUri, options, function(err){
             console.log("Connection successfull");
         }
 });
+
+exports.getPGConnection = function(callback)
+{
+	try
+	{
+		var client = new pg.Client(pgConString);
+		client.connect(function(err){
+			if(err)
+			{
+				console.log("Error while PG connection" + err);
+				logger.debug("Error while connecting to PG" + err);
+				callback(err);
+			}
+			else
+			{
+				callback(null,client);
+			}
+		});
+	}
+	catch(err)
+	{
+		console.log("Error while PG connection" + err);
+		logger.debug("Error while connecting to PG" + err);
+	}
+};

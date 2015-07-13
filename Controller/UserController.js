@@ -4,6 +4,7 @@ var mongoose = require('mongoose');
 var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt-nodejs');
 var promise = require("bluebird");
+var pg = require('pg');
 //Custom packages
 var userSecurity = require("../Modules/UserSecurityCollection.js");
 var userDetails = require("../Modules/UserDetailsCollection.js");
@@ -12,6 +13,7 @@ var conn = require("./Connection.js");
 
 promise.promisifyAll(mongoose);
 promise.promisifyAll(bcrypt);
+promise.promisifyAll(pg);
 
 exports.getUsersList= function(req, res) {
     
@@ -90,8 +92,11 @@ exports.postUserRegister = function(req, res) {
       var userName = req.body.username;
       var password = req.body.password;
       var fName = req.body.firstname;
-      var lName = req.body.lastName;
-      var gender = req.body.gender;
+      var lName = req.body.lastname;
+      var gender = 1;
+      var accountType = req.body.accounttype;
+      var countryId = req.body.countryid;
+      var schemaName = "famhook21";
       
       if(userName == null || userName == "" || !ValidateEmail(userName))
       {         
@@ -116,13 +121,276 @@ exports.postUserRegister = function(req, res) {
       else
       {      
         logger.debug("UserControl register :  Search and save registration.");
-        CreateCollectionsAndRecord(res, userName, password, fName, lName, gender);
+        CreateCollectionsAndRecordPG(res, userName, password, fName, lName, gender, accountType, countryId, schemaName);
       } 
     }
 };
 
-//Create record for user - security and details
-function CreateCollectionsAndRecord(res, pUserName, pPassword, pFirstName, pLastName, pGender)
+// Check if the details are valid and change the password.
+exports.changePasswordRegister = function(req, res) {
+  
+  if(req.body && req.body.username && req.body.password && req.body.newpassword)
+  {
+      var retUserName = req.body.username;
+      var retPassword = req.body.password;
+      var retNewPassword = req.body.newpassword;
+           
+      //Using promise first find record with username. If record is found update the password.
+      userSecurity.findOne({ userName: retUserName}).then(function (user) {
+        if(!user)
+        {
+          console.log("Username does not exists");
+          logger.debug("UserControl changePasswordRegister : Username does not exists = " + retUserName);
+          res.json({message:"Error : Username does not exists"});
+          return null;    
+        }
+        else
+        {          
+            // Make sure the password is correct
+            bcrypt.compareAsync(retPassword, user.password).then(function(isMatch)
+            {            
+                if(!isMatch)
+                {
+                  // at least one number, one lowercase and one uppercase letter
+                  // at least six characters  
+                  logger.debug("UserControl newPassword : Password is not valid");
+                   res.json({message:"Error : Password is not valid"});
+                   res.end();   
+                }      
+                else if(!ValidatePassword(retNewPassword))
+                {
+                  logger.debug("UserControl newPassword : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase");
+                   res.json({message:"Error : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
+                   res.end();   
+                }
+                else
+                {      
+                  logger.debug("UserControl new password :  Update new password.");
+                  var secreateInfo = new userSecurity();
+                        bcrypt.genSaltAsync(5).then(function(salt) 
+                        {        	       
+                           bcrypt.hashAsync(retNewPassword, salt, null).then(function(hash) 
+                      	    {
+                      		      return hash;
+                           }).then(function(retHashPwd)
+                           {
+                             var isLast5Password = false;
+                             var pwdCount = 0;
+                             //Check if password is from last 5 password list.
+                             if(user.oldPasswords && user.oldPasswords.length > 0)
+                             {
+                                 for(var cnt=0;cnt<user.oldPasswords.length;cnt++)
+                                 {
+                                   if(pwdCount<5)
+                                   {
+                                      var previousPwd = user.oldPasswords[cnt].password;
+                                      if(previousPwd == retHashPwd)
+                                      {
+                                        isLast5Password = true;
+                                      }
+                                      pwdCount++;
+                                   }  
+                                   else
+                                      break;
+                                 }
+                             }
+                             
+                             if(isLast5Password)
+                             {
+                                  console.log("New password was set earlier. Password should not be from last 5 passwords");
+                            			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
+                                  res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
+                             }
+                             else
+                             {
+                                secreateInfo.updateAsync({userId:user.userId},{$pushAll:{oldPasswords:[{password:retHashPwd}]},$set:{password:retHashPwd}},{ upsert: true },{customIdCondition: true}).then(function(updateStatus){
+                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
+                                      res.json({message:"Password updated successfully..!!"});
+                                  }).catch(function(err)
+                                  {
+                                    console.log("Error while updating password" + err);
+                              			logger.debug("changePasswordRegister : Error : while updating the password" + err);
+                                    res.json({message:"Error : while updating the password"});                    
+                                  }); 
+                             }
+                           });
+                        }).catch(function(err)
+                         {
+                              console.log("error in password hashing");
+                              logger.debug("UserControl newPassword : Password is not valid");
+                              res.json({message:"Error : Password is not valid"});
+                         });                                   
+                } 
+            }).catch(function(err)
+               {
+                    console.log("Username or password is not valid");
+                    logger.debug("UserControl newPassword : Username or password is not valid");
+                    res.json({message:"Error : Username or password is not valid"});
+               });   
+        }
+      }).catch(function(err)
+       {
+            console.log("Username does not exists");
+            logger.debug("UserControl newPassword : Username does not exists " + retUserName);
+            res.json({message:"Error : Username does not exists"});
+       });    
+  }
+};
+
+//Create record for user - security and details in PG db.
+function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLastName, pGender, pAccountType, pCountry, pschemaName)
+{
+	//User security values.
+	  var secreateInfo = new userSecurity();
+    var userInfo = new userDetails();	
+		var date = new Date();
+		var appendToExternalId = date.getDate()+"v"+date.getMonth()+"r"+date.getFullYear();
+    
+    conn.getPGConnection(function(err, clientConn)
+    {    
+      if(err)
+      {
+        console.log("ClientSave - Error while connection PG" + err);
+        logger.debug("ClientSave - Error while connection PG" + err);
+      }
+      else
+      {
+        try
+        {         
+           //Check if user name exists.   
+           clientConn.query("SELECT userid from "+pschemaName+".tbusersecurity WHERE username = $1", [pUserName], function(err, result)
+           {
+             if(err)
+             {
+                console.log("Error while verifying user " + err);
+                logger.debug("UserControl register : Error while verifying user = " + err);
+                res.json({message:"Error : Error while verifying user"}); 
+             }   
+             else
+             {
+               if(result && result.rows && result.rows.length > 0)
+               {
+                  console.log("Username already exists");
+                  logger.debug("UserControl register : Username already exists = " + pUserName);
+                  res.json({message:"Error : Username already exists"});  
+               }
+               else
+               {
+                 //Hash the password value.
+                  bcrypt.genSaltAsync(5).then(function(salt) 
+                   {        	       
+                     bcrypt.hashAsync(pPassword, salt, null).then(function(hash) 
+                	    {
+                		      return hash;
+                     }).then(function(retHashPwd)
+                     {
+                       
+                        logger.debug("Hashed created");          
+                        //SAVE UserSecret Code Starts
+                        logger.debug("SAVE UserSecret Code Starts");
+                        //Save the value in Mongo as well for logs and generating unique ObjId.   
+                        secreateInfo.userId = mongoose.Types.ObjectId();
+                    		secreateInfo.extId = appendToExternalId+ "" +secreateInfo.userId;              		    
+                    		secreateInfo.password = retHashPwd;	
+                    		secreateInfo.userName = pUserName;
+                    		secreateInfo.oldPasswords = [{password:retHashPwd}];
+                        secreateInfo.status = false;       
+                        return secreateInfo.saveAsync()}).then(function(userSaved){
+                          logger.debug("CreateCollectionsAndRecordPG : Success : Secret record saved successfully");
+                					console.log("Success : Secret record saved successfully");                       
+                          
+                          if(userSaved.length > 0)	
+                        	   {userInfo.userId = userSaved[0].userId;}
+                          else
+                              {userInfo.userId = secreateInfo.userId;}
+                          
+                          try
+                          {
+                            //Begin the insert transaction to store values in secret and userdetails table.
+                            //For any error rollback the transaction else commit.
+                            clientConn.query("BEGIN", function(err, result)
+                            {
+                                if(err)
+                                {
+                                  console.log("Error while inserting user secrets " + err);
+                                  logger.debug("UserControl register : Error while inserting user secrets " + err);
+                                  conn.rollback(clientConn);
+                                }
+                                else
+                                {
+                                  clientConn.query("INSERT INTO "+pschemaName+".tbusersecurity (userid, username, password, extid, oldpasswords, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING userid",
+                                  [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), String(secreateInfo.password), 1], function(err, result){
+                                    if(err)
+                                    {
+                                      console.log("Error while inserting user secrets " + err);
+                                      logger.debug("UserControl register : Error while inserting user secrets " + err);
+                                      conn.rollback(clientConn);
+                                      res.json({message:"Error : Error while inserting user secrets"}); 
+                                    }
+                                    else
+                                    {
+                                      if(result && result.rows && result.rows.length > 0)
+                                      {
+                                        clientConn.query("INSERT INTO "+pschemaName+".tbuserdetails (userid, firstname, lastname, gender, accounttype, country) VALUES ($1,$2,$3,$4,$5,$6) RETURNING userid",
+                                        [String(secreateInfo.userId), pFirstName, pLastName, pGender, pAccountType, pCountry], function(err, result){
+                                          if(err)
+                                          {
+                                            console.log("Error while inserting user details " + err);
+                                            logger.debug("UserControl register : Error while inserting user details " + err);
+                                            conn.rollback(clientConn);
+                                            res.json({message:"Error : Error while inserting user details"}); 
+                                          }
+                                          else
+                                          {
+                                            console.log("User records saved successfully");
+                                            logger.debug("Success : User records saved successfully");
+                                            res.json({message:"Success : User records saved successfully"}); 
+                                          }
+                                          clientConn.query('COMMIT', clientConn.end.bind(clientConn));
+                                        });
+                                      }
+                                    }                                    
+                                  });   
+                                }                           
+                            });                            
+                          }
+                          catch(err)
+                          {
+                            clientConn.end();
+                            console.log("Error while inserting user info");
+                            logger.debug("UserControl register : Error while inserting user info");
+                            res.json({message:"Error : Error while inserting user info"}); 
+                          }
+                          
+                        }).catch(function(err)
+                           {
+                             console.log("Error while saving the records " + err);
+                             logger.debug("CreateCollectionsAndRecordPG : Error while saving user info" + err);
+                             res.json({message:"Error : Error while saving user info"});                 
+                           });
+                   }).catch(function(err)
+                     {
+                       console.log("GenSalth hashed password error " + err);
+                       logger.debug("CreateCollectionsAndRecordPG : hash function failed" + err);
+                       res.json({message:"Error : Hash function failed"});                 
+                     });
+               }
+             }                 
+           });
+        }
+        catch(err)
+        {
+          clientConn.end();
+           console.log("ClientSave - Error while saving user PG" + err);
+           logger.debug("ClientSave - Error while saving user PG" + err);
+        }
+      }
+    });                      
+}
+
+
+//Create record for user - security and details in Mongodb only.
+function CreateCollectionsAndRecordMongo(res, pUserName, pPassword, pFirstName, pLastName, pGender)
 {
 	//User security values.
 	  var secreateInfo = new userSecurity();
@@ -156,7 +424,7 @@ function CreateCollectionsAndRecord(res, pUserName, pPassword, pFirstName, pLast
               		secreateInfo.extId = appendToExternalId+ "" +secreateInfo.userId;              		    
               		secreateInfo.password = retHashPwd;	
               		secreateInfo.userName = pUserName;
-              		secreateInfo.passwords = {password:retHashPwd};
+              		secreateInfo.oldPasswords = [{password:retHashPwd}];
                   secreateInfo.status = false;              		
               		return secreateInfo.saveAsync()}).then(function(userSaved)
               		{    
@@ -206,7 +474,7 @@ function CreateCollectionsAndRecord(res, pUserName, pPassword, pFirstName, pLast
             console.log("Username already exists");
             logger.debug("UserControl register : Username already exists = " + pUserName);
             res.json({message:"Error : Username already exists"});
-       });;                           
+       });                         
 }
 
 //Validate Password
