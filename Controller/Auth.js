@@ -2,51 +2,66 @@
 var passport = require('passport');
 var basicStrategy = require('passport-http').BasicStrategy;
 var bearerStrategy = require('passport-http-bearer').Strategy;
+var bcrypt = require('bcrypt-nodejs');
 var token = require('../Modules/Token.js'); 
 var user = require('../Modules/UserSecurityCollection.js');
 var client = require('../Modules/Client.js');
 var logger = require("../logger");
+var conn = require("./Connection.js");
 
 passport.use('basic', new basicStrategy(
   function(username, password, callback) {
-    user.findOne({ userName: username }, function (err, user) {
-      if (err) 
-      { 
-        console.log("Username not found" + err);
-        logger.debug("Auth Passport - Username not found = " + username);
-        return callback(err); 
+   
+   var schemaName =  conn.getDBSchema(username); 
+   conn.getPGConnection(function(err, clientConn)
+    {    
+      if(err)
+      {
+        console.log("ClientSave - Error while connection PG" + err);
+        logger.debug("ClientSave - Error while connection PG" + err);
       }
       else
       {
-        console.log("Username found");
+        clientConn.queryAsync("SELECT * from "+schemaName+".tbusersecurity WHERE username = $1", [username]).then(function(result)
+         {
+           
+           if(result && result.rows && result.rows.length > 0)
+           {
+             console.log("Username found");            
+            
+               // Make sure the password is correct
+              verifyPassword(password, result.rows[0].password, function(err, isMatch) {
+                if (err) { 
+                  console.log("Password not found" + err);
+                  logger.debug("Auth Passport - Password not found");
+                  return callback(err);
+                }else{console.log("Password found");}
+        
+                // Password did not match
+                if (!isMatch) 
+                {
+                  logger.debug("Auth Passport - Password not found"); 
+                  return callback(null, false); 
+                }        
+                // Success
+                return callback(null, user);
+              });
+           }
+           else
+           {
+              console.log("Username not found" + err);
+              logger.debug("Auth Passport - Username not found = " + username);
+              return callback({message:"No results returned"});  
+           }
+           clientConn.end();
+           
+         }).catch(function(err){
+           console.log("Username not found" + err);
+          logger.debug("Auth Passport - Username not found = " + username);
+          clientConn.end();
+          return callback(err);            
+         });
       }
-
-      // No user found with that username
-      if (!user) 
-      { 
-        console.log("Username error found");
-        logger.debug("Auth Passport - Username error found = " + username);
-        return callback(null, false); 
-      }
-
-      // Make sure the password is correct
-      user.verifyPassword(password, function(err, isMatch) {
-        if (err) { 
-          console.log("Password not found" + err);
-          logger.debug("Auth Passport - Password not found");
-          return callback(err);
-        }else{console.log("Password found");}
-
-        // Password did not match
-        if (!isMatch) 
-        {
-          logger.debug("Auth Passport - Password not found"); 
-          return callback(null, false); 
-        }
-
-        // Success
-        return callback(null, user);
-      });
     });
   }
 ));
@@ -115,6 +130,21 @@ passport.use(new bearerStrategy({passReqToCallback:true},
     });
   }
 ));
+
+function verifyPassword(password, dbpassword, cb) 
+{
+  logger.debug("Verify Password");
+  bcrypt.compare(password, dbpassword, function(err, isMatch) 
+   {
+    if (err) 
+	{ 
+		return cb(err);
+		logger.debug("Verify Password failed for password - " + password);
+	}
+    cb(null, isMatch);
+  });
+}
+
 
 //Check the difference between 2 datetimes and return the difference in hours.
 function GetDateTimeDifference(maxDate, minDate)

@@ -96,7 +96,7 @@ exports.postUserRegister = function(req, res) {
       var gender = 1;
       var accountType = req.body.accounttype;
       var countryId = req.body.countryid;
-      var schemaName = "famhook21";
+      var schemaName = conn.getDBSchema(userName);
       
       if(userName == null || userName == "" || !ValidateEmail(userName))
       {         
@@ -135,6 +135,255 @@ exports.changePasswordRegister = function(req, res) {
       var retPassword = req.body.password;
       var retNewPassword = req.body.newpassword;
            
+      //Using promise first find record with username. If record is found update the password.
+      userSecurity.findOne({ userName: retUserName}).then(function (user) {
+        if(!user)
+        {
+          console.log("Username does not exists");
+          logger.debug("UserControl changePasswordRegister : Username does not exists = " + retUserName);
+          res.json({message:"Error : Username does not exists"});
+          return null;    
+        }
+        else
+        {          
+            // Make sure the password is correct
+            bcrypt.compareAsync(retPassword, user.password).then(function(isMatch)
+            {            
+                if(!isMatch)
+                {
+                  // at least one number, one lowercase and one uppercase letter
+                  // at least six characters  
+                  logger.debug("UserControl newPassword : Password is not valid");
+                   res.json({message:"Error : Password is not valid"});
+                   res.end();   
+                }      
+                else if(!ValidatePassword(retNewPassword))
+                {
+                  logger.debug("UserControl newPassword : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase");
+                   res.json({message:"Error : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
+                   res.end();   
+                }
+                else
+                {      
+                  logger.debug("UserControl new password :  Update new password.");
+                  var secreateInfo = new userSecurity();
+                        bcrypt.genSaltAsync(5).then(function(salt) 
+                        {        	       
+                           bcrypt.hashAsync(retNewPassword, salt, null).then(function(hash) 
+                      	    {
+                      		      return hash;
+                           }).then(function(retHashPwd)
+                           {
+                             var isLast5Password = false;
+                             var pwdCount = 0;
+                             //Check if password is from last 5 password list.
+                             if(user.oldPasswords && user.oldPasswords.length > 0)
+                             {
+                                 for(var cnt=0;cnt<user.oldPasswords.length;cnt++)
+                                 {
+                                   if(pwdCount<5)
+                                   {
+                                      var previousPwd = user.oldPasswords[cnt].password;
+                                      if(previousPwd == retHashPwd)
+                                      {
+                                        isLast5Password = true;
+                                      }
+                                      pwdCount++;
+                                   }  
+                                   else
+                                      break;
+                                 }
+                             }
+                             
+                             if(isLast5Password)
+                             {
+                                  console.log("New password was set earlier. Password should not be from last 5 passwords");
+                            			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
+                                  res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
+                             }
+                             else
+                             {
+                                secreateInfo.updateAsync({userId:user.userId},{$pushAll:{oldPasswords:[{password:retHashPwd}]},$set:{password:retHashPwd}},{ upsert: true },{customIdCondition: true}).then(function(updateStatus){
+                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
+                                      res.json({message:"Password updated successfully..!!"});
+                                  }).catch(function(err)
+                                  {
+                                    console.log("Error while updating password" + err);
+                              			logger.debug("changePasswordRegister : Error : while updating the password" + err);
+                                    res.json({message:"Error : while updating the password"});                    
+                                  }); 
+                             }
+                           });
+                        }).catch(function(err)
+                         {
+                              console.log("error in password hashing");
+                              logger.debug("UserControl newPassword : Password is not valid");
+                              res.json({message:"Error : Password is not valid"});
+                         });                                   
+                } 
+            }).catch(function(err)
+               {
+                    console.log("Username or password is not valid");
+                    logger.debug("UserControl newPassword : Username or password is not valid");
+                    res.json({message:"Error : Username or password is not valid"});
+               });   
+        }
+      }).catch(function(err)
+       {
+            console.log("Username does not exists");
+            logger.debug("UserControl newPassword : Username does not exists " + retUserName);
+            res.json({message:"Error : Username does not exists"});
+       });    
+  }
+};
+
+// Check if the details are valid and change the password.
+exports.changePasswordRegisterPG = function(req, res) {
+  
+  if(req.body && req.body.username && req.body.password && req.body.newpassword)
+  {
+      var retUserName = req.body.username;
+      var retPassword = req.body.password;
+      var retNewPassword = req.body.newpassword;
+      var pschemaName = conn.getDBSchema(retUserName);
+     
+     conn.getPGConnection(function(err, clientConn)
+    {    
+      if(err)
+      {
+        console.log("ClientSave - Error while connection PG" + err);
+        logger.debug("ClientSave - Error while connection PG" + err);
+      }
+      else
+      {
+        clientConn.queryAsync("SELECT userid from "+pschemaName+".tbusersecurity WHERE username = $1", [retUserName]).then(function(result)
+         {
+            var passwordList = "";
+            var passObj = null;
+           if(result && result.rows && result.rows.length > 0)
+           {
+             // Make sure the password is correct
+                bcrypt.compareAsync(retPassword, result.rows[0].password).then(function(isMatch)
+                {            
+                    if(!isMatch)
+                    {
+                      // at least one number, one lowercase and one uppercase letter
+                      // at least six characters  
+                      logger.debug("UserControl newPassword : Password is not valid");
+                       res.json({message:"Error : Password is not valid"});
+                       res.end();   
+                    }      
+                    else if(!ValidatePassword(retNewPassword))
+                    {
+                      logger.debug("UserControl newPassword : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase");
+                       res.json({message:"Error : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
+                       res.end();   
+                    }
+                    else
+                    {      
+                      logger.debug("UserControl new password :  Update new password.");                  
+                      
+                      bcrypt.genSaltAsync(5).then(function(salt) 
+                      {        	       
+                         bcrypt.hashAsync(retNewPassword, salt, null).then(function(hash) 
+                    	    {
+                    		      return hash;
+                         }).then(function(retHashPwd)
+                         {
+                           var isLast5Password = false;
+                           var pwdCount = 0;
+                           //Check if password is from last 5 password list.
+                           if(result && result.rows && result.rows.length > 0)
+                           {
+                               passwordList = result.rows[0].oldpasswords;
+                               passObj = JSON.parse(passwordList);
+                                
+                               for(var cnt=0;cnt<passObj.passwords.length;cnt++)
+                               {
+                                 if(pwdCount<5)
+                                 {
+                                    var previousPwd = passObj.passwords[cnt];
+                                    if(previousPwd == retHashPwd)
+                                    {
+                                      isLast5Password = true;
+                                    }
+                                    pwdCount++;
+                                 }  
+                                 else
+                                    break;
+                               }
+                           }
+                           
+                           if(isLast5Password)
+                           {
+                                console.log("New password was set earlier. Password should not be from last 5 passwords");
+                          			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
+                                res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
+                           }
+                           else
+                           {
+                             if(passObj != null)
+                             {
+                               var newpassObj = passObj.push(retHashPwd);
+                                clientConn.queryAsync("UPDATE "+pschemaName+".tbusersecurity SET password=$1, oldpasswords=$2 WHERE userid = $3 RETURNING userid", [retHashPwd, JSON.stringify(newpassObj),result.rows[0].userid]).then(function(result){
+                                  
+                                    if(result && result.rows && result.rows.length>0)
+                                    {
+                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
+                                      res.json({message:"Password updated successfully..!!"});
+                                    }
+                                    else
+                                    {
+                                      console.log("Error while updating password");
+                                			logger.debug("changePasswordRegister : Error : while updating the password");
+                                      res.json({message:"Error : while updating the password"});  
+                                    }
+                                    clientConn.end();
+                                }).catch(function(err)
+                                {
+                                   clientConn.end();
+                                  console.log("Error while updating password" + err);
+                            			logger.debug("changePasswordRegister : Error : while updating the password" + err);
+                                  res.json({message:"Error : while updating the password"});                    
+                                });  
+                             }
+                             else
+                             {
+                                  console.log("Error while updating password");
+                            			logger.debug("changePasswordRegister : Error : while updating the password");
+                                  res.json({message:"Error : while updating the password"});  
+                             }
+                              
+                           }
+                         });
+                      });                 
+                      
+                    }
+                }).catch(function(err)
+                         {
+                              console.log("error in password hashing");
+                              logger.debug("UserControl newPassword : Password is not valid");
+                              res.json({message:"Error : Password is not valid"});
+                         });        
+           }
+           else
+           {
+              console.log("Username does not exists");
+              logger.debug("UserControl changePasswordRegister : Username does not exists = " + retUserName);
+              res.json({message:"Error : Username does not exists"});
+              return null;
+           }
+         }).catch(function(err)
+           {
+                console.log("Username does not exists");
+                logger.debug("UserControl newPassword : Username does not exists " + retUserName);
+                res.json({message:"Error : Username does not exists"});
+           });
+      }
+    });
+         
+       
+      
       //Using promise first find record with username. If record is found update the password.
       userSecurity.findOne({ userName: retUserName}).then(function (user) {
         if(!user)
@@ -293,7 +542,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                     		secreateInfo.extId = appendToExternalId+ "" +secreateInfo.userId;              		    
                     		secreateInfo.password = retHashPwd;	
                     		secreateInfo.userName = pUserName;
-                    		secreateInfo.oldPasswords = [{password:retHashPwd}];
+                    		secreateInfo.oldPasswords = {"passwords":[retHashPwd]};
                         secreateInfo.status = false;       
                         return secreateInfo.saveAsync()}).then(function(userSaved){
                           logger.debug("CreateCollectionsAndRecordPG : Success : Secret record saved successfully");
@@ -318,8 +567,9 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                 }
                                 else
                                 {
+                                  var oldPasswordJson = '{"oldpasswords":["'+secreateInfo.password+'"]}';
                                   clientConn.query("INSERT INTO "+pschemaName+".tbusersecurity (userid, username, password, extid, oldpasswords, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING userid",
-                                  [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), String(secreateInfo.password), 1], function(err, result){
+                                  [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), oldPasswordJson, 1], function(err, result){
                                     if(err)
                                     {
                                       console.log("Error while inserting user secrets " + err);
@@ -476,6 +726,9 @@ function CreateCollectionsAndRecordMongo(res, pUserName, pPassword, pFirstName, 
             res.json({message:"Error : Username already exists"});
        });                         
 }
+
+
+
 
 //Validate Password
 function ValidatePassword(password)
