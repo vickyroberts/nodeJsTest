@@ -37,52 +37,55 @@ exports.postUserLogin = function(req, res) {
     var userName = req.body.username;
     var password = req.body.password;
     logger.debug("UserControl - Searching for login post");
-     userSecurity.findOne({ userName: userName }).then(function (user) {
-        
-          console.log("Username found");
-          // No user found with that username
-          if (!user) 
-          { 
-            console.log("Username not found");
-            logger.debug("UserControl login : Username not found = " + userName);
-            res.json({message:"Username not found"});        
-          }
     
-          // Make sure the password is correct
-          user.verifyPassword(password, function(err, isMatch) {
-            if (err) 
-            { 
-              console.log("Password not found" + err);
-              logger.debug("UserControl login : Password not found");
-              res.json({message:"Error : Password not found"});
-              //return callback(err);
-            }else
-            {
-              console.log("Password found");          
-            }
-    
-            // Password did not match
-            if (!isMatch) 
-            { 
-              logger.debug("UserControl login : Password not found");
-              res.json({message:"Error : Password not found"}); 
-            }
-    
-            res.json({message:"Login Successful"});
-          });
-        }).catch(function(err)
-        {
-           console.log("Username not found" + err);
-            logger.debug("UserControl login : Username not found = " + userName);
-            res.json({message:"Error : Username not found"});  
-        });
+   var pschemaName = conn.getDBSchema(userName);     
+    conn.getPGConnection(function(err, clientConn)
+    {    
+      if(err)
+      {
+        console.log("postUserLogin - Error while connection PG" + err);
+        logger.debug("postUserLogin - Error while connection PG" + err);
       }
       else
       {
-        logger.debug("UserControl login : UserName or Password not found");
-        res.json({message:"Error : UserName or Password not found"}); 
+        clientConn.queryAsync("SELECT * from "+pschemaName+".tbusersecurity WHERE username = $1", [userName]).then(function(result)
+         {
+            var passwordList = "";
+            var passObj = null;
+           if(result && result.rows && result.rows.length > 0)
+           {
+             // Make sure the password is correct
+                bcrypt.compareAsync(password, result.rows[0].password).then(function(isMatch)
+                {            
+                    if(!isMatch)
+                    {
+                      res.json({message:"Error : Username or password not found"}); 
+                    }
+                    else
+                    {
+                      res.json({message:"Success : Login successfull"}); 
+                    }
+                });
+           }
+           else
+           {
+             console.log("Username or password not found");
+            logger.debug("UserControl login : Username or password not found = " + userName);
+            res.json({message:"Username or password not found"});  
+           }
+         }).catch(function(err)
+          {
+             console.log("Username or password not found" + err);
+              logger.debug("UserControl login : Username or password not found = " + userName);
+              res.json({message:"Error : Username or password not found"});  
+          });
       }
-  };
+    });
+  }
+}
+    
+    
+    
 
 // Check if the user is logged in and return the message.
 exports.postUserRegister = function(req, res) {  
@@ -247,7 +250,7 @@ exports.changePasswordRegisterPG = function(req, res) {
       var retNewPassword = req.body.newpassword;
       var pschemaName = conn.getDBSchema(retUserName);
      
-     conn.getPGConnection(function(err, clientConn)
+    conn.getPGConnection(function(err, clientConn)
     {    
       if(err)
       {

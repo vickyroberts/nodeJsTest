@@ -10,7 +10,7 @@ exports.postClients = function(req, res) {
 
   // Set the client properties that came from the POST data
   client.name = req.body.name;
-  client.id = req.body.id;
+  client.id = req.body.userid.substr(0,15);
   client.secret = req.body.secret;
   client.userId = req.body.userid;
   var schemaName = conn.getDBSchema(client.name);
@@ -57,7 +57,7 @@ exports.postClients = function(req, res) {
 
 // Create endpoint /api/clients for GET
 exports.getClients = function(req, res) {
-    var schemaName = conn.getDBSchema(req.username);
+  var schemaName = conn.getDBSchema(req.username);
   // Use the Client model to find all clients
   conn.getPGConnection(function(err, clientConn)
   {
