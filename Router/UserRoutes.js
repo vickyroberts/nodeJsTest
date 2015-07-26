@@ -15,10 +15,31 @@ router.get('/',function(req,res){res.json({message:'Successfully in the get func
 router.route('/users')  
   .get(authController.isAuthenticated, userController.getUsersList);
   
+//Register user details.
+router.post('/registerUser', userController.postUserRegister);  
+
+//Check if username of page name already exists.
+router.post('/checkRecordAvailable', userController.checkUserorEmailAvailable);
+
+//Login user
 router.route('/loginUser')
     .post(authController.isAuthenticated, userController.postUserLogin);
+
+//Update password of existing user
+router.route('/updatepassword')
+    .post(authController.isAuthenticated, userController.changePasswordRegisterPG);    
+
+//Get registered user's details
+router.route('/getuserinfo')
+    .post(authController.isAuthenticated, userController.getUserDetails);    
     
-router.post('/registerUser', userController.postUserRegister);     
+//Update registered user's details
+router.route('/updateuserinfo')
+    .post(authController.isAuthenticated, userController.updateUserDetails);
+    
+//Update registered user's mobile no.
+router.route('/updatemobileno')
+    .post(authController.isAuthenticated, userController.updateMobileNumber);    
 
 router.route('/clients')
     .post(authController.isAuthenticated, clientController.postClients)

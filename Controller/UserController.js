@@ -29,7 +29,49 @@ exports.getUsersList= function(req, res) {
     });    
 };
 
-// Check if the user is logged in and return the message.
+// Check if the user exists and return the message.
+exports.checkUserorEmailAvailable = function(req, res) {  
+  // Set the client properties that came from the POST data
+  if(req.body && req.body.username && req.body.password)
+  {
+        
+    var fieldToCheck = req.body.field;
+    var valueToCheck = req.body.value;
+    logger.debug("UserControl - Searching for login post");
+    
+   var pschemaName = conn.getDBSchema("");     
+    conn.getPGConnection(function(err, clientConn)
+    {    
+      if(err)
+      {
+        console.log("postUserLogin - Error while connection PG" + err);
+        logger.debug("postUserLogin - Error while connection PG" + err);
+      }
+      else
+      {
+        clientConn.queryAsync("SELECT * from "+pschemaName+".tbusersecurity WHERE "+fieldToCheck+" = $1", [valueToCheck]).then(function(result)
+         {            
+           if(result && result.rows && result.rows.length > 0)
+           {
+             // Make sure the password is correct               
+               res.json({message:"Value already exists"});
+           }
+           else
+           {             
+              res.json({message:"Value not found"});  
+           }
+         }).catch(function(err)
+          {
+             console.log("Value not found" + err);
+              logger.debug("UserControl login : Value for "+fieldToCheck+" not found = " + userName);
+              res.json({message:"Error : Value for "+fieldToCheck+" not found"});  
+          });
+      }
+    });
+  }
+}   
+
+// Check if the user exists and return the message.
 exports.postUserLogin = function(req, res) {  
   // Set the client properties that came from the POST data
   if(req.body && req.body.username && req.body.password)
@@ -63,15 +105,16 @@ exports.postUserLogin = function(req, res) {
                     }
                     else
                     {
-                      res.json({message:"Success : Login successfull"}); 
+                      req.session.userid = result.rows[0].extid;
+                      res.json({message:{"userid":result.rows[0].extid}}); 
                     }
                 });
            }
            else
            {
-             console.log("Username or password not found");
-            logger.debug("UserControl login : Username or password not found = " + userName);
-            res.json({message:"Username or password not found"});  
+              console.log("Username or password not found");
+              logger.debug("UserControl login : Username or password not found = " + userName);
+              res.json({message:"Username or password not found"});  
            }
          }).catch(function(err)
           {
@@ -82,12 +125,9 @@ exports.postUserLogin = function(req, res) {
       }
     });
   }
-}
-    
-    
-    
+}   
 
-// Check if the user is logged in and return the message.
+// Check if the user is available, if not then add the details.
 exports.postUserRegister = function(req, res) {  
   // Set the client properties that came from the POST data
   if(req.body && req.body.username && req.body.password)
@@ -96,7 +136,7 @@ exports.postUserRegister = function(req, res) {
       var password = req.body.password;
       var fName = req.body.firstname;
       var lName = req.body.lastname;
-      var gender = 1;
+      var gender = req.body.gender;
       var accountType = req.body.accounttype;
       var countryId = req.body.countryid;
       var schemaName = conn.getDBSchema(userName);
@@ -129,116 +169,51 @@ exports.postUserRegister = function(req, res) {
     }
 };
 
-// Check if the details are valid and change the password.
-exports.changePasswordRegister = function(req, res) {
-  
-  if(req.body && req.body.username && req.body.password && req.body.newpassword)
-  {
-      var retUserName = req.body.username;
-      var retPassword = req.body.password;
-      var retNewPassword = req.body.newpassword;
-           
-      //Using promise first find record with username. If record is found update the password.
-      userSecurity.findOne({ userName: retUserName}).then(function (user) {
-        if(!user)
+// Get details of user and send it.
+exports.getUserDetails = function(req, res) {  
+  // Set the client properties that came from the POST data
+  var userId = req.session.userid;
+  if(userId && userId!="")
+  {    
+    
+    logger.debug("UserControl - Searching for user details");    
+     var pschemaName = conn.getDBSchema("");     
+      conn.getPGConnection(function(err, clientConn)
+      {    
+        if(err)
         {
-          console.log("Username does not exists");
-          logger.debug("UserControl changePasswordRegister : Username does not exists = " + retUserName);
-          res.json({message:"Error : Username does not exists"});
-          return null;    
+          console.log("postUserLogin - Error while connection PG" + err);
+          logger.debug("postUserLogin - Error while connection PG" + err);
         }
         else
-        {          
-            // Make sure the password is correct
-            bcrypt.compareAsync(retPassword, user.password).then(function(isMatch)
-            {            
-                if(!isMatch)
-                {
-                  // at least one number, one lowercase and one uppercase letter
-                  // at least six characters  
-                  logger.debug("UserControl newPassword : Password is not valid");
-                   res.json({message:"Error : Password is not valid"});
-                   res.end();   
-                }      
-                else if(!ValidatePassword(retNewPassword))
-                {
-                  logger.debug("UserControl newPassword : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase");
-                   res.json({message:"Error : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
-                   res.end();   
-                }
-                else
-                {      
-                  logger.debug("UserControl new password :  Update new password.");
-                  var secreateInfo = new userSecurity();
-                        bcrypt.genSaltAsync(5).then(function(salt) 
-                        {        	       
-                           bcrypt.hashAsync(retNewPassword, salt, null).then(function(hash) 
-                      	    {
-                      		      return hash;
-                           }).then(function(retHashPwd)
-                           {
-                             var isLast5Password = false;
-                             var pwdCount = 0;
-                             //Check if password is from last 5 password list.
-                             if(user.oldPasswords && user.oldPasswords.length > 0)
-                             {
-                                 for(var cnt=0;cnt<user.oldPasswords.length;cnt++)
-                                 {
-                                   if(pwdCount<5)
-                                   {
-                                      var previousPwd = user.oldPasswords[cnt].password;
-                                      if(previousPwd == retHashPwd)
-                                      {
-                                        isLast5Password = true;
-                                      }
-                                      pwdCount++;
-                                   }  
-                                   else
-                                      break;
-                                 }
-                             }
-                             
-                             if(isLast5Password)
-                             {
-                                  console.log("New password was set earlier. Password should not be from last 5 passwords");
-                            			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
-                                  res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
-                             }
-                             else
-                             {
-                                secreateInfo.updateAsync({userId:user.userId},{$pushAll:{oldPasswords:[{password:retHashPwd}]},$set:{password:retHashPwd}},{ upsert: true },{customIdCondition: true}).then(function(updateStatus){
-                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
-                                      res.json({message:"Password updated successfully..!!"});
-                                  }).catch(function(err)
-                                  {
-                                    console.log("Error while updating password" + err);
-                              			logger.debug("changePasswordRegister : Error : while updating the password" + err);
-                                    res.json({message:"Error : while updating the password"});                    
-                                  }); 
-                             }
-                           });
-                        }).catch(function(err)
-                         {
-                              console.log("error in password hashing");
-                              logger.debug("UserControl newPassword : Password is not valid");
-                              res.json({message:"Error : Password is not valid"});
-                         });                                   
-                } 
-            }).catch(function(err)
-               {
-                    console.log("Username or password is not valid");
-                    logger.debug("UserControl newPassword : Username or password is not valid");
-                    res.json({message:"Error : Username or password is not valid"});
-               });   
+        {
+          clientConn.queryAsync("SELECT us.extid, us.username,us.pageurlname, ud.firstname, ud.lastname, ud.gender, ud.addressline, ud.city, ud.state, co.countryid, co.countryname, ud.profpicfilename, ud.filetype,ud.filepath, ud.albumid, ud.accounttype,ud.qualificationtags, ud.professiontags, ud.skilltags,ud.joblocationpreftags, ud.matriexpectedqualification, ud.matriexpectedjob, ud.matriexpectedpreferedlocation,ud.groupstaggedto, ud.dateofbirth, ud.mobilenumber, ud.workdetails, ud.educationdetails, tz.timezoneid, tz.timezone, tz.timezoneminutes FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid=ud.userid LEFT JOIN "+pschemaName+".tbcountryid co ON ud.country = co.countryid LEFT JOIN "+pschemaName+".tbtimezone tz ON ud.timezoneid = tz.timezoneid WHERE us.extid = $1 AND ud.issuperuser = false", [userId]).then(function(result)
+           {              
+              var userdetails = {};
+             if(result && result.rows && result.rows.length > 0)
+             {
+               //Add user details in session
+               userdetails = {"userdetails":{"extid":result.rows[0].extid,"username":result.rows[0].username,"pageurlname":result.rows[0].pageurlname,"firstname":result.rows[0].firstname,"lastname":result.rows[0].lastname,"gender":result.rows[0].gender,"addressline":result.rows[0].addressline,"city":result.rows[0].city,"state":result.rows[0].state,"countryid":result.rows[0].countryid,"countryname":result.rows[0].countryname,"profpicfilename":result.rows[0].profpicfilename,"filetype":result.rows[0].filetype,"filepath":result.rows[0].filepath,"albumid":result.rows[0].albumid,"accounttype":result.rows[0].accounttype,"qualificationtags":result.rows[0].qualificationtags,"professiontags":result.rows[0].professiontags,"skilltags":result.rows[0].skilltags,"joblocationpreftags":result.rows[0].joblocationpreftags,"matriexpectedqualification":result.rows[0].matriexpectedqualification,"matriexpectedjob":result.rows[0].matriexpectedjob,"matriexpectedpreferedlocation":result.rows[0].matriexpectedpreferedlocation,"groupstaggedto":result.rows[0].groupstaggedto,"dateofbirth":result.rows[0].dateofbirth,"mobilenumber":result.rows[0].mobilenumber,"workdetails":result.rows[0].workdetails,"educationdetails":result.rows[0].educationdetails,"timezoneid":result.rows[0].timezoneid,"timezone":result.rows[0].timezone,"timezoneminutes":result.rows[0].timezoneminutes}};
+                
+                req.session.userdetails = userdetails;
+                res.json(userdetails);
+             }
+             else
+             {
+                console.log("User info not found");
+                logger.debug("UserControl details : User info not found");
+                res.json({"userdetails":null});  
+             }
+           }).catch(function(err)
+            {
+               console.log("User info not found " + err);
+                logger.debug("UserControl details : User info not found "+ err);
+                res.json({message:"Error : User info not found " + err});  
+            });
         }
-      }).catch(function(err)
-       {
-            console.log("Username does not exists");
-            logger.debug("UserControl newPassword : Username does not exists " + retUserName);
-            res.json({message:"Error : Username does not exists"});
-       });    
+      });
   }
-};
+}   
 
 // Check if the details are valid and change the password.
 exports.changePasswordRegisterPG = function(req, res) {
@@ -259,7 +234,7 @@ exports.changePasswordRegisterPG = function(req, res) {
       }
       else
       {
-        clientConn.queryAsync("SELECT userid from "+pschemaName+".tbusersecurity WHERE username = $1", [retUserName]).then(function(result)
+        clientConn.queryAsync("SELECT * from "+pschemaName+".tbusersecurity WHERE username = $1", [retUserName]).then(function(result)
          {
             var passwordList = "";
             var passObj = null;
@@ -285,82 +260,87 @@ exports.changePasswordRegisterPG = function(req, res) {
                     else
                     {      
                       logger.debug("UserControl new password :  Update new password.");                  
-                      
+                      //Get the hash value.
                       bcrypt.genSaltAsync(5).then(function(salt) 
                       {        	       
                          bcrypt.hashAsync(retNewPassword, salt, null).then(function(hash) 
                     	    {
                     		      return hash;
                          }).then(function(retHashPwd)
-                         {
-                           var isLast5Password = false;
-                           var pwdCount = 0;
+                         {                           
                            //Check if password is from last 5 password list.
                            if(result && result.rows && result.rows.length > 0)
                            {
-                               passwordList = result.rows[0].oldpasswords;
-                               passObj = JSON.parse(passwordList);
-                                
-                               for(var cnt=0;cnt<passObj.passwords.length;cnt++)
-                               {
-                                 if(pwdCount<5)
-                                 {
-                                    var previousPwd = passObj.passwords[cnt];
-                                    if(previousPwd == retHashPwd)
-                                    {
-                                      isLast5Password = true;
-                                    }
-                                    pwdCount++;
-                                 }  
-                                 else
-                                    break;
-                               }
-                           }
-                           
-                           if(isLast5Password)
-                           {
-                                console.log("New password was set earlier. Password should not be from last 5 passwords");
-                          			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
-                                res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
-                           }
-                           else
-                           {
-                             if(passObj != null)
-                             {
-                               var newpassObj = passObj.push(retHashPwd);
-                                clientConn.queryAsync("UPDATE "+pschemaName+".tbusersecurity SET password=$1, oldpasswords=$2 WHERE userid = $3 RETURNING userid", [retHashPwd, JSON.stringify(newpassObj),result.rows[0].userid]).then(function(result){
-                                  
-                                    if(result && result.rows && result.rows.length>0)
-                                    {
-                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
-                                      res.json({message:"Password updated successfully..!!"});
-                                    }
-                                    else
-                                    {
-                                      console.log("Error while updating password");
-                                			logger.debug("changePasswordRegister : Error : while updating the password");
-                                      res.json({message:"Error : while updating the password"});  
-                                    }
-                                    clientConn.end();
-                                }).catch(function(err)
-                                {
-                                   clientConn.end();
-                                  console.log("Error while updating password" + err);
-                            			logger.debug("changePasswordRegister : Error : while updating the password" + err);
-                                  res.json({message:"Error : while updating the password"});                    
-                                });  
-                             }
-                             else
-                             {
-                                  console.log("Error while updating password");
-                            			logger.debug("changePasswordRegister : Error : while updating the password");
-                                  res.json({message:"Error : while updating the password"});  
-                             }
-                              
+                              //get the json data from database.
+                               passwordList = result.rows[0].oldpasswords.oldpasswords.slice();                               
+                               //Verify if the new password is used in last 5 password list.
+                               VerifyPassword(0, retNewPassword, passwordList, false, function(err, isMatch)
+                                 { 
+                                   if(err)
+                                   {
+                                      console.log("Error while updating the password " + err);
+                                      logger.debug("Error while updating the password " + err);
+                                      res.json({message:"Error : Error while updating the password " + err});
+                                   }
+                                   else
+                                   {
+                                       if(isMatch)
+                                       {
+                                            console.log("New password was set earlier. Password should not be from last 5 passwords");
+                                      			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
+                                            res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
+                                       }
+                                       else
+                                       {
+                                         if(passwordList != null)
+                                         {
+                                           try
+                                           {
+                                               //Push the new password at zeroth position.
+                                               passwordList.splice(0,0,retHashPwd);
+                                               var updatedPassword = '{"oldpasswords":' + JSON.stringify(passwordList) + '}';
+                                                clientConn.queryAsync("UPDATE "+pschemaName+".tbusersecurity SET password=$1, oldpasswords=$2 WHERE userid = $3 RETURNING userid", [retHashPwd, JSON.parse(updatedPassword), result.rows[0].userid]).then(function(result){
+                                                  
+                                                    if(result && result.rows && result.rows.length>0)
+                                                    {
+                                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
+                                                      res.json({message:"Password updated successfully..!!"});
+                                                    }
+                                                    else
+                                                    {
+                                                      console.log("Error while updating password");
+                                                			logger.debug("changePasswordRegister : Error : while updating the password");
+                                                      res.json({message:"Error : while updating the password"});  
+                                                    }
+                                                    clientConn.end();
+                                                }).catch(function(err)
+                                                {
+                                                   clientConn.end();
+                                                  console.log("Error while updating password" + err);
+                                            			logger.debug("changePasswordRegister : Error : while updating the password" + err);
+                                                  res.json({message:"Error : while updating the password"});                    
+                                                });
+                                           }  
+                                           catch(err)
+                                           {
+                                              console.log("Error while updating password" + err);
+                                            	logger.debug("changePasswordRegister : Error : while updating the password" + err);
+                                              res.json({message:"Error : while updating the password"});
+                                           }
+                                         }
+                                         else
+                                         {
+                                              console.log("Error while updating password");
+                                        			logger.debug("changePasswordRegister : Error : while updating the password");
+                                              res.json({message:"Error : while updating the password"});  
+                                         }
+                                          
+                                       }
+                                   }
+                                 });
                            }
                          });
-                      });                 
-                      
+                      });           
                     }
                 }).catch(function(err)
                          {
@@ -383,109 +363,7 @@ exports.changePasswordRegisterPG = function(req, res) {
                 res.json({message:"Error : Username does not exists"});
            });
       }
-    });
-         
-       
-      
-      //Using promise first find record with username. If record is found update the password.
-      userSecurity.findOne({ userName: retUserName}).then(function (user) {
-        if(!user)
-        {
-          console.log("Username does not exists");
-          logger.debug("UserControl changePasswordRegister : Username does not exists = " + retUserName);
-          res.json({message:"Error : Username does not exists"});
-          return null;    
-        }
-        else
-        {          
-            // Make sure the password is correct
-            bcrypt.compareAsync(retPassword, user.password).then(function(isMatch)
-            {            
-                if(!isMatch)
-                {
-                  // at least one number, one lowercase and one uppercase letter
-                  // at least six characters  
-                  logger.debug("UserControl newPassword : Password is not valid");
-                   res.json({message:"Error : Password is not valid"});
-                   res.end();   
-                }      
-                else if(!ValidatePassword(retNewPassword))
-                {
-                  logger.debug("UserControl newPassword : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase");
-                   res.json({message:"Error : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
-                   res.end();   
-                }
-                else
-                {      
-                  logger.debug("UserControl new password :  Update new password.");
-                  var secreateInfo = new userSecurity();
-                        bcrypt.genSaltAsync(5).then(function(salt) 
-                        {        	       
-                           bcrypt.hashAsync(retNewPassword, salt, null).then(function(hash) 
-                      	    {
-                      		      return hash;
-                           }).then(function(retHashPwd)
-                           {
-                             var isLast5Password = false;
-                             var pwdCount = 0;
-                             //Check if password is from last 5 password list.
-                             if(user.oldPasswords && user.oldPasswords.length > 0)
-                             {
-                                 for(var cnt=0;cnt<user.oldPasswords.length;cnt++)
-                                 {
-                                   if(pwdCount<5)
-                                   {
-                                      var previousPwd = user.oldPasswords[cnt].password;
-                                      if(previousPwd == retHashPwd)
-                                      {
-                                        isLast5Password = true;
-                                      }
-                                      pwdCount++;
-                                   }  
-                                   else
-                                      break;
-                                 }
-                             }
-                             
-                             if(isLast5Password)
-                             {
-                                  console.log("New password was set earlier. Password should not be from last 5 passwords");
-                            			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
-                                  res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
-                             }
-                             else
-                             {
-                                secreateInfo.updateAsync({userId:user.userId},{$pushAll:{oldPasswords:[{password:retHashPwd}]},$set:{password:retHashPwd}},{ upsert: true },{customIdCondition: true}).then(function(updateStatus){
-                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
-                                      res.json({message:"Password updated successfully..!!"});
-                                  }).catch(function(err)
-                                  {
-                                    console.log("Error while updating password" + err);
-                              			logger.debug("changePasswordRegister : Error : while updating the password" + err);
-                                    res.json({message:"Error : while updating the password"});                    
-                                  }); 
-                             }
-                           });
-                        }).catch(function(err)
-                         {
-                              console.log("error in password hashing");
-                              logger.debug("UserControl newPassword : Password is not valid");
-                              res.json({message:"Error : Password is not valid"});
-                         });                                   
-                } 
-            }).catch(function(err)
-               {
-                    console.log("Username or password is not valid");
-                    logger.debug("UserControl newPassword : Username or password is not valid");
-                    res.json({message:"Error : Username or password is not valid"});
-               });   
-        }
-      }).catch(function(err)
-       {
-            console.log("Username does not exists");
-            logger.debug("UserControl newPassword : Username does not exists " + retUserName);
-            res.json({message:"Error : Username does not exists"});
-       });    
+    });  
   }
 };
 
@@ -542,7 +420,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                         logger.debug("SAVE UserSecret Code Starts");
                         //Save the value in Mongo as well for logs and generating unique ObjId.   
                         secreateInfo.userId = mongoose.Types.ObjectId();
-                    		secreateInfo.extId = appendToExternalId+ "" +secreateInfo.userId;              		    
+                    		secreateInfo.extId = appendToExternalId+ "_" + secreateInfo.userId.substr(0,15);              		    
                     		secreateInfo.password = retHashPwd;	
                     		secreateInfo.userName = pUserName;
                     		secreateInfo.oldPasswords = {"passwords":[retHashPwd]};
@@ -571,7 +449,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                 else
                                 {
                                   var oldPasswordJson = '{"oldpasswords":["'+secreateInfo.password+'"]}';
-                                  clientConn.query("INSERT INTO "+pschemaName+".tbusersecurity (userid, username, password, extid, oldpasswords, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING userid",
+                                  clientConn.query("INSERT INTO "+pschemaName+".tbusersecurity (userid, username, password, extid, oldpasswords, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING extid",
                                   [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), oldPasswordJson, 1], function(err, result){
                                     if(err)
                                     {
@@ -584,6 +462,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                     {
                                       if(result && result.rows && result.rows.length > 0)
                                       {
+                                        var extUserId = result.rows[0].extid;
                                         clientConn.query("INSERT INTO "+pschemaName+".tbuserdetails (userid, firstname, lastname, gender, accounttype, country) VALUES ($1,$2,$3,$4,$5,$6) RETURNING userid",
                                         [String(secreateInfo.userId), pFirstName, pLastName, pGender, pAccountType, pCountry], function(err, result){
                                           if(err)
@@ -597,7 +476,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                           {
                                             console.log("User records saved successfully");
                                             logger.debug("Success : User records saved successfully");
-                                            res.json({message:"Success : User records saved successfully"}); 
+                                            res.json({message:{"userid":extUserId}}); 
                                           }
                                           clientConn.query('COMMIT', clientConn.end.bind(clientConn));
                                         });
@@ -641,97 +520,117 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
     });                      
 }
 
-
-//Create record for user - security and details in Mongodb only.
-function CreateCollectionsAndRecordMongo(res, pUserName, pPassword, pFirstName, pLastName, pGender)
-{
-	//User security values.
-	  var secreateInfo = new userSecurity();
-    var userInfo = new userDetails();	
-		var date = new Date();
-		var appendToExternalId = date.getDate()+"v"+date.getMonth()+"r"+date.getFullYear();
+// Update user information for the registered users.
+exports.updateUserDetails = function(req, res) {  
+  // Set the client properties that came from the POST data
+  var userId = req.session.userid;
+  if(userId && userId!="" && req.body && req.body.firstname && req.body.lastname)
+  {     
+     var fName = req.body.firstname;
+     var lName = req.body.lastname;
+     var gender = req.body.gender;
+     var accountType = req.body.accounttype;     
+     var dateOfbirth = req.body.dateofbirth;
+     var addressLine = req.body.addressline;
+     var city = req.body.city;
+     var state = req.body.state;
+     var countryId = req.body.countryid;
+     var timezoneId = req.body.timezoneid;
+    logger.debug("UserControl - Searching for login post");
     
-    //Using promise first find record with username. If record is not found add user secret and details.
-    userSecurity.findOne({ userName: pUserName }).then(function (user) 
-       {
-          if (user) 
-          { 
-            console.log("Username already exists");
-            logger.debug("UserControl register : Username already exists = " + pUserName);
-            res.json({message:"Error : Username already exists"});         
+    var isValidDOB = ValidateDateOfBirth(dateOfbirth);
+    if(isValidDOB)
+    {
+        var pschemaName = conn.getDBSchema("");     
+        conn.getPGConnection(function(err, clientConn)
+        {    
+          if(err)
+          {
+            console.log("updateUser - Error while connection PG" + err);
+            logger.debug("updateUser - Error while connection PG" + err);
           }
           else
-          { 
-            //Hash the password value.
-            bcrypt.genSaltAsync(5).then(function(salt) 
-             {        	       
-               bcrypt.hashAsync(pPassword, salt, null).then(function(hash) 
-          	    {
-          		      return hash;
-               }).then(function(retHashPwd)
+          {
+            clientConn.queryAsync("UPDATE "+pschemaName+".tbuserdetails SET firstname=$1, lastname=$2, gender=$3, addressline=$4, city=$5, state=$6, country=$7, accounttype=$8, timezoneid=$9 FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid = ud.userid WHERE us.extid = $10 RETURNING extid", [fName,lName,gender,addressLine,city,state,countryId,accountType,timezoneId,userId]).then(function(result)
+             {            
+               if(result && result.rows && result.rows.length > 0)
                {
-                  logger.debug("Hashed created");          
-                  //SAVE UserSecret Code Starts
-                  logger.debug("SAVE UserSecret Code Starts");   
-                  secreateInfo.userId = mongoose.Types.ObjectId();
-              		secreateInfo.extId = appendToExternalId+ "" +secreateInfo.userId;              		    
-              		secreateInfo.password = retHashPwd;	
-              		secreateInfo.userName = pUserName;
-              		secreateInfo.oldPasswords = [{password:retHashPwd}];
-                  secreateInfo.status = false;              		
-              		return secreateInfo.saveAsync()}).then(function(userSaved)
-              		{    
-                        logger.debug("CreateCollectionsAndRecord : Success : Secret record saved successfully");
-              					console.log("Success : Secret record saved successfully");                       
-                        
-                        if(userSaved.length > 0)	
-                      	   {userInfo.userId = userSaved[0].userId;}
-                        else
-                            {userInfo.userId = secreateInfo.userId;}
-                      	userInfo.firstName = pFirstName;
-                      	userInfo.lastName = pLastName;
-                        userInfo.gender = 	pGender;              		
-                      	var profFileName = "DefaultUser.jpeg"; 
-                      	var proffilePath = "./DefaultPictures/" + profFileName; 
-                        userInfo.profilePicture = {fileId:mongoose.Types.ObjectId(),fileName:profFileName,filePath:proffilePath,fileType:"JPEG"};             	
-                      	userInfo.accountType = "Personal";              	
-                      	return userInfo.saveAsync()}).then(function(userDetailsSaved)
-                        {
-                            logger.debug("CreateCollectionsAndRecord : User Details saved successfully");									
-                    				console.log("User record saved successfully");
-                            var updateUserId = userInfo.userId;
-                             
-                            if(userDetailsSaved.length > 0)
-                              updateUserId = userDetailsSaved[0].userId;
-                            //Update user status to active start
-                            secreateInfo = new userSecurity();
-                            secreateInfo.updateAsync({userId:updateUserId},{status:true},{ multi: false },{customIdCondition: true}).then(function(updateStatus){
-                                logger.debug("CreateCollectionsAndRecord : User Details added successfully and activates " + updateStatus);                                
-                                res.json({message:"Userdetails saved successfully..!!"});
-                            });
-                        }).catch(function(err)
-                          {
-                            console.log("Error while saving" + err);
-                      			logger.debug("CreateCollectionsAndRecord : Error : while saving the user details" + err);
-                            res.json({message:"Error : while saving the user details"});                    
-                          });
+                 // Make sure the password is correct
+                 res.json({message:"Success"});                
+               }
+               else
+               {
+                  console.log("User could not be updated");
+                  logger.debug("updateUser : User could not be updated");
+                  res.json({message:"User could not be updated"});  
+               }
              }).catch(function(err)
-               {
-                 console.log("GenSalth hashed password error " + err);
-                 logger.debug("CreateCollectionsAndRecord : hash function failed" + err);
-                 res.json({message:"Error : Hash function failed"});                 
-               });
+              {
+                 console.log("User could not be updated" + err);
+                  logger.debug("updateUser : User could not be updated = " + err);
+                  res.json({message:"Error : User could not be updated"});  
+              });
           }
-       }).catch(function(err)
-       {
-            console.log("Username already exists");
-            logger.debug("UserControl register : Username already exists = " + pUserName);
-            res.json({message:"Error : Username already exists"});
-       });                         
-}
+        });
+    }
+    else
+    {
+      res.json({message:"Error : Date of birth is not valid"});
+    }
+  }
+}   
 
-
-
+// Update mobile information for the registered users.
+exports.updateMobileNumber = function(req, res) {  
+  // Set the client properties that came from the POST data
+  var userId = req.session.userid;
+  if(userId && userId!="" && req.body && req.body.mobileno)
+  {     
+     var mobilenumber = req.body.mobileno;
+     
+    logger.debug("UserControl - Searching for login post");
+    
+    var isValidMob = ValidateMobileNumber(mobilenumber);
+    if(isValidMob)
+    {
+        var pschemaName = conn.getDBSchema("");     
+        conn.getPGConnection(function(err, clientConn)
+        {    
+          if(err)
+          {
+            console.log("updateUser - Error while connection PG" + err);
+            logger.debug("updateUser - Error while connection PG" + err);
+          }
+          else
+          {
+            clientConn.queryAsync("UPDATE "+pschemaName+".tbuserdetails SET mobilenumber=$1 FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid = ud.userid WHERE us.extid = $2 RETURNING extid", [mobilenumber,userId]).then(function(result)
+             {            
+               if(result && result.rows && result.rows.length > 0)
+               {
+                 // Make sure the password is correct
+                 res.json({message:"Success"});                
+               }
+               else
+               {
+                  console.log("Mobile number could not be updated");
+                  logger.debug("updateUser : Mobile number could not be updated");
+                  res.json({message:"Mobile number could not be updated"});  
+               }
+             }).catch(function(err)
+              {
+                 console.log("Mobile number could not be updated" + err);
+                  logger.debug("updateUser : Mobile number could not be updated = " + err);
+                  res.json({message:"Error : Mobile number could not be updated"});  
+              });
+          }
+        });
+    }
+    else
+    {
+      res.json({message:"Error : Mobile number is not valid"});
+    }
+  }
+}  
 
 //Validate Password
 function ValidatePassword(password)
@@ -746,6 +645,78 @@ function ValidatePassword(password)
 function ValidateEmail(email) {
     var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i;
     return re.test(email);
+}
+
+function ValidateMobileNumber(mobno) {
+  if(mobno.match(/^[1-9]{1}[0-9]{11}$/))
+    {
+      return true;
+    }    
+    return false;
+}
+//Check if the date is valid and in correct format.
+function ValidateDateOfBirth(dob)
+{
+  var isValidDate = true;
+  try
+  {
+    var date = new Date();  	
+    var splitDate = dob.split('-');
+    if(splitDate.length == 3)
+    {
+      if(splitDate[0] < 0 && splitDate[0] > 12)
+      {
+        isValidDate = false;
+      }
+      if(splitDate[1] < 0 && splitDate[1] > 31)
+      {
+        isValidDate = false;
+      }
+      if(splitDate[2] < 1920 && splitDate[2] > (date.getFullYear()-1))
+      {
+        isValidDate = false;
+      }
+    }
+    else
+    {
+      isValidDate = false;
+    }
+  }
+  catch(err){isValidDate = false;}
+  return isValidDate;
+}
+
+//Verify the password with hash values.
+//Parameters are plain text pass, hash values array and callback.
+function VerifyPassword(count, currentPwd, arrPasswords, isPasswordMatch, callback)
+{ 
+    //Recursive code for completing the looping in callback mechanism.
+    try
+    {
+      bcrypt.compare(currentPwd, arrPasswords[count], function(err, isMatch) 
+       {
+        if (err) 
+    	  {     		
+    		  logger.debug("Verify password failed");
+          callback(err);
+    	  }
+        
+        //check if the last 4 password matches the new password. The 4 is harcoded.
+        //If we have to increase last 4 option to "n" number of option, then change the below 4 to "n".
+        isPasswordMatch = isMatch;
+        if(count == 4 || count == arrPasswords.length-1 || isPasswordMatch)
+        {
+          callback(null, isPasswordMatch);
+        }      
+        else
+        {          
+           VerifyPassword(count+1, currentPwd, arrPasswords, isPasswordMatch, callback);
+        }
+      });
+    }
+    catch(err){
+      callback(err, false);
+    }       
 }
 
 //This function creates a hash of input values required for Bcrypt.
