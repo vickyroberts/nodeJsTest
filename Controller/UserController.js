@@ -69,6 +69,10 @@ exports.checkUserorEmailAvailable = function(req, res) {
       }
     });
   }
+  else
+  {
+     res.json({message:"Error : Parameter username and password cannot be blank"});
+  }
 }   
 
 // Check if the user exists and return the message.
@@ -125,6 +129,10 @@ exports.postUserLogin = function(req, res) {
       }
     });
   }
+  else
+    {
+      res.json({message:"Error : Parameter username and password cannot be blank"});
+    }
 }   
 
 // Check if the user is available, if not then add the details.
@@ -166,6 +174,10 @@ exports.postUserRegister = function(req, res) {
         logger.debug("UserControl register :  Search and save registration.");
         CreateCollectionsAndRecordPG(res, userName, password, fName, lName, gender, accountType, countryId, schemaName);
       } 
+    }
+    else
+    {
+      res.json({message:"Error : Parameter username and password cannot be blank"});
     }
 };
 
@@ -212,6 +224,10 @@ exports.getUserDetails = function(req, res) {
             });
         }
       });
+  }
+  else
+  {
+    res.json({message:"Error : User info not found as parameter was not passed"});
   }
 }   
 
@@ -364,6 +380,10 @@ exports.changePasswordRegisterPG = function(req, res) {
            });
       }
     });  
+  }
+  else
+  {
+    res.json({message:"Error : Could not update the password as parameter was not passed"}); 
   }
 };
 
@@ -538,8 +558,8 @@ exports.updateUserDetails = function(req, res) {
      var timezoneId = req.body.timezoneid;
     logger.debug("UserControl - Searching for login post");
     
-    var isValidDOB = ValidateDateOfBirth(dateOfbirth);
-    if(isValidDOB)
+    var dateFormated = ValidateDateOfBirth(dateOfbirth);
+    if(dateFormated)
     {
         var pschemaName = conn.getDBSchema("");     
         conn.getPGConnection(function(err, clientConn)
@@ -551,7 +571,7 @@ exports.updateUserDetails = function(req, res) {
           }
           else
           {
-            clientConn.queryAsync("UPDATE "+pschemaName+".tbuserdetails SET firstname=$1, lastname=$2, gender=$3, addressline=$4, city=$5, state=$6, country=$7, accounttype=$8, timezoneid=$9 FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid = ud.userid WHERE us.extid = $10 RETURNING extid", [fName,lName,gender,addressLine,city,state,countryId,accountType,timezoneId,userId]).then(function(result)
+            clientConn.queryAsync("UPDATE "+pschemaName+".tbuserdetails SET firstname=$1, lastname=$2, gender=$3, addressline=$4, city=$5, state=$6, country=$7, accounttype=$8, timezoneid=$9, dateOfbirth=$10 FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid = ud.userid WHERE us.extid = $11 RETURNING extid", [fName,lName,gender,addressLine,city,state,countryId,accountType,timezoneId,dateFormated,userId]).then(function(result)
              {            
                if(result && result.rows && result.rows.length > 0)
                {
@@ -577,6 +597,10 @@ exports.updateUserDetails = function(req, res) {
     {
       res.json({message:"Error : Date of birth is not valid"});
     }
+  }
+  else
+  {
+    res.json({message:"Error : User could not be updated as parameter was not passed"});  
   }
 }   
 
@@ -630,6 +654,106 @@ exports.updateMobileNumber = function(req, res) {
       res.json({message:"Error : Mobile number is not valid"});
     }
   }
+  else
+  {
+    res.json({message:"Error : Mobile number is not valid as parameter was not passed"});
+  }
+}  
+
+// Update work information for the registered users.
+exports.updateWorkDetails = function(req, res) {  
+  // Set the client properties that came from the POST data
+  var userId = req.session.userid;
+  if(userId && userId!="" && req.body && req.body.workdetailsJSON)
+  {     
+     var workDetails = JSON.parse(req.body.workdetailsJSON);
+     
+    logger.debug("UserControl - Updating work details");
+    
+      var pschemaName = conn.getDBSchema("");     
+      conn.getPGConnection(function(err, clientConn)
+      {    
+        if(err)
+        {
+          console.log("updateWorkDetails - Error while connection PG" + err);
+          logger.debug("updateWorkDetails - Error while connection PG" + err);
+        }
+        else
+        {
+          clientConn.queryAsync("UPDATE "+pschemaName+".tbuserdetails SET workdetails=$1 FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid = ud.userid WHERE us.extid = $2 RETURNING extid", [workDetails,userId]).then(function(result)
+           {            
+             if(result && result.rows && result.rows.length > 0)
+             {
+               // Make sure the password is correct
+               res.json({message:"Success"});                
+             }
+             else
+             {
+                console.log("Work information could not be updated");
+                logger.debug("updateWorkDetails : Work information could not be updated");
+                res.json({message:"Work information could not be updated"});  
+             }
+           }).catch(function(err)
+            {
+               console.log("Work information could not be updated" + err);
+                logger.debug("updateUser : Work information could not be updated = " + err);
+                res.json({message:"Error : Work information could not be updated"});  
+            });
+        }
+      });    
+  }
+  else
+  {
+    res.json({message:"Error : Work information could not be updated as parameter was not passed"});  
+  }
+}  
+
+// Update work information for the registered users.
+exports.updateEducationDetails = function(req, res) {  
+  // Set the client properties that came from the POST data
+  var userId = req.session.userid;
+  if(userId && userId!="" && req.body && req.body.educationdetailsJSON)
+  {     
+     var educationDetails = JSON.parse(req.body.educationdetailsJSON);
+     
+    logger.debug("UserControl - Updating work details");
+    
+      var pschemaName = conn.getDBSchema("");     
+      conn.getPGConnection(function(err, clientConn)
+      {    
+        if(err)
+        {
+          console.log("updateEducationDetails - Error while connection PG" + err);
+          logger.debug("updateEducationDetails - Error while connection PG" + err);
+        }
+        else
+        {
+          clientConn.queryAsync("UPDATE "+pschemaName+".tbuserdetails SET educationdetails=$1 FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid = ud.userid WHERE us.extid = $2 RETURNING extid", [educationDetails,userId]).then(function(result)
+           {            
+             if(result && result.rows && result.rows.length > 0)
+             {
+               // Make sure the password is correct
+               res.json({message:"Success"});                
+             }
+             else
+             {
+                console.log("Education information could not be updated");
+                logger.debug("updateEducationDetails : Work information could not be updated");
+                res.json({message:"Education information could not be updated"});  
+             }
+           }).catch(function(err)
+            {
+               console.log("Education information could not be updated" + err);
+                logger.debug("updateEducationDetails : Education information could not be updated = " + err);
+                res.json({message:"Error : Education information could not be updated"});  
+            });
+        }
+      });    
+  }
+  else
+  {
+     res.json({message:"Error : Education information could not be updated as parameter was not passed"});  
+  }
 }  
 
 //Validate Password
@@ -657,7 +781,7 @@ function ValidateMobileNumber(mobno) {
 //Check if the date is valid and in correct format.
 function ValidateDateOfBirth(dob)
 {
-  var isValidDate = true;
+  var formattedDate = null;
   try
   {
     var date = new Date();  	
@@ -666,24 +790,29 @@ function ValidateDateOfBirth(dob)
     {
       if(splitDate[0] < 0 && splitDate[0] > 12)
       {
-        isValidDate = false;
+        formattedDate = null;
       }
-      if(splitDate[1] < 0 && splitDate[1] > 31)
+      else if(splitDate[1] < 0 && splitDate[1] > 31)
       {
-        isValidDate = false;
+        formattedDate = null;
       }
-      if(splitDate[2] < 1920 && splitDate[2] > (date.getFullYear()-1))
+      else if(splitDate[2] < 1920 && splitDate[2] > (date.getFullYear()-1))
       {
-        isValidDate = false;
+        formattedDate = null;
+      }
+      else
+      {
+        formattedDate = splitDate[2]+"-"+splitDate[0]+"-"+splitDate[1];
+        formattedDate = formattedDate + " 00:00:00";
       }
     }
     else
     {
-      isValidDate = false;
+      formattedDate = null;
     }
   }
-  catch(err){isValidDate = false;}
-  return isValidDate;
+  catch(err){formattedDate = null;}
+  return formattedDate;
 }
 
 //Verify the password with hash values.

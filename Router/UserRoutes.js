@@ -39,7 +39,15 @@ router.route('/updateuserinfo')
     
 //Update registered user's mobile no.
 router.route('/updatemobileno')
-    .post(authController.isAuthenticated, userController.updateMobileNumber);    
+    .post(authController.isAuthenticated, userController.updateMobileNumber);   
+    
+//Update registered user's work information.
+router.route('/updateworkinfo')
+    .post(authController.isAuthenticated, userController.updateWorkDetails);  
+    
+//Update registered user's education details
+router.route('/updateeducationinfo')
+    .post(authController.isAuthenticated, userController.updateEducationDetails);
 
 router.route('/clients')
     .post(authController.isAuthenticated, clientController.postClients)
