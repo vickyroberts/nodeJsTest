@@ -9,12 +9,13 @@ var groupCollection = new groupSchema({
 	groupName: {type:String, index:true},
 	groupType: String,
 	description: String,
-	pictures:[{fileId:{type: Number, required:true, unique:true},fileName:String,filePath:String,fileType:String}],
-	userIds: [Number],	
+	pictures:[{fileId:{type: mongoose.Schema.Types.ObjectId, required:true, unique:true},
+		fileName:String,filePath:String,fileType:String,fileUploadedDate:{type:Date, default:Date.now}}],
+	userIds: [String],	
 	displayAdminDetails:{type:Boolean, default:true},
 	status: Boolean,
 	createdDate: {type:Date, default:Date.now}
 });
 
-module.exports = mongoose.model('GroupCollection',groupCollection,'GroupCollection')
+module.exports = mongoose.model('GroupCollection',groupCollection,'GroupCollection');
 

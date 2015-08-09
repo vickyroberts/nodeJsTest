@@ -5,9 +5,12 @@ var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt-nodejs');
 var promise = require("bluebird");
 var pg = require('pg');
+var fs = require('fs');
+var gm = require('gm');
 //Custom packages
 var userSecurity = require("../Modules/UserSecurityCollection.js");
 var userDetails = require("../Modules/UserDetailsCollection.js");
+var album = require("../Modules/Album.js");
 var logger = require("../logger");
 var conn = require("./Connection.js");
 
@@ -53,11 +56,13 @@ exports.checkUserorEmailAvailable = function(req, res) {
          {            
            if(result && result.rows && result.rows.length > 0)
            {
+             res.status(200);
              // Make sure the password is correct               
                res.json({message:"Value already exists"});
            }
            else
            {             
+             res.status(200);
               res.json({message:"Value not found"});  
            }
          }).catch(function(err)
@@ -71,9 +76,10 @@ exports.checkUserorEmailAvailable = function(req, res) {
   }
   else
   {
+    res.status(400);
      res.json({message:"Error : Parameter username and password cannot be blank"});
   }
-}   
+};   
 
 // Check if the user exists and return the message.
 exports.postUserLogin = function(req, res) {  
@@ -110,6 +116,8 @@ exports.postUserLogin = function(req, res) {
                     else
                     {
                       req.session.userid = result.rows[0].extid;
+                      req.session.username = userName;
+                      res.status(200);
                       res.json({message:{"userid":result.rows[0].extid}}); 
                     }
                 });
@@ -131,9 +139,10 @@ exports.postUserLogin = function(req, res) {
   }
   else
     {
+      res.status(400);
       res.json({message:"Error : Parameter username and password cannot be blank"});
     }
-}   
+};   
 
 // Check if the user is available, if not then add the details.
 exports.postUserRegister = function(req, res) {  
@@ -177,6 +186,7 @@ exports.postUserRegister = function(req, res) {
     }
     else
     {
+      res.status(400);
       res.json({message:"Error : Parameter username and password cannot be blank"});
     }
 };
@@ -208,6 +218,7 @@ exports.getUserDetails = function(req, res) {
                userdetails = {"userdetails":{"extid":result.rows[0].extid,"username":result.rows[0].username,"pageurlname":result.rows[0].pageurlname,"firstname":result.rows[0].firstname,"lastname":result.rows[0].lastname,"gender":result.rows[0].gender,"addressline":result.rows[0].addressline,"city":result.rows[0].city,"state":result.rows[0].state,"countryid":result.rows[0].countryid,"countryname":result.rows[0].countryname,"profpicfilename":result.rows[0].profpicfilename,"filetype":result.rows[0].filetype,"filepath":result.rows[0].filepath,"albumid":result.rows[0].albumid,"accounttype":result.rows[0].accounttype,"qualificationtags":result.rows[0].qualificationtags,"professiontags":result.rows[0].professiontags,"skilltags":result.rows[0].skilltags,"joblocationpreftags":result.rows[0].joblocationpreftags,"matriexpectedqualification":result.rows[0].matriexpectedqualification,"matriexpectedjob":result.rows[0].matriexpectedjob,"matriexpectedpreferedlocation":result.rows[0].matriexpectedpreferedlocation,"groupstaggedto":result.rows[0].groupstaggedto,"dateofbirth":result.rows[0].dateofbirth,"mobilenumber":result.rows[0].mobilenumber,"workdetails":result.rows[0].workdetails,"educationdetails":result.rows[0].educationdetails,"timezoneid":result.rows[0].timezoneid,"timezone":result.rows[0].timezone,"timezoneminutes":result.rows[0].timezoneminutes}};
                 
                 req.session.userdetails = userdetails;
+                res.status(200);
                 res.json(userdetails);
              }
              else
@@ -227,9 +238,10 @@ exports.getUserDetails = function(req, res) {
   }
   else
   {
+    res.status(400);
     res.json({message:"Error : User info not found as parameter was not passed"});
   }
-}   
+};   
 
 // Check if the details are valid and change the password.
 exports.changePasswordRegisterPG = function(req, res) {
@@ -319,7 +331,8 @@ exports.changePasswordRegisterPG = function(req, res) {
                                                   
                                                     if(result && result.rows && result.rows.length>0)
                                                     {
-                                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");                                
+                                                      logger.debug("CreateCollectionsAndRecord : Password updated successfully");
+                                                      res.status(200);                                
                                                       res.json({message:"Password updated successfully..!!"});
                                                     }
                                                     else
@@ -383,6 +396,7 @@ exports.changePasswordRegisterPG = function(req, res) {
   }
   else
   {
+    res.status(400);
     res.json({message:"Error : Could not update the password as parameter was not passed"}); 
   }
 };
@@ -440,7 +454,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                         logger.debug("SAVE UserSecret Code Starts");
                         //Save the value in Mongo as well for logs and generating unique ObjId.   
                         secreateInfo.userId = mongoose.Types.ObjectId();
-                    		secreateInfo.extId = appendToExternalId+ "_" + secreateInfo.userId.substr(0,15);              		    
+                    		secreateInfo.extId = appendToExternalId+ "_" + String(secreateInfo.userId).substr(0,15);              		    
                     		secreateInfo.password = retHashPwd;	
                     		secreateInfo.userName = pUserName;
                     		secreateInfo.oldPasswords = {"passwords":[retHashPwd]};
@@ -494,6 +508,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                           }
                                           else
                                           {
+                                            res.status(200);
                                             console.log("User records saved successfully");
                                             logger.debug("Success : User records saved successfully");
                                             res.json({message:{"userid":extUserId}}); 
@@ -538,7 +553,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
         }
       }
     });                      
-}
+};
 
 // Update user information for the registered users.
 exports.updateUserDetails = function(req, res) {  
@@ -576,6 +591,7 @@ exports.updateUserDetails = function(req, res) {
                if(result && result.rows && result.rows.length > 0)
                {
                  // Make sure the password is correct
+                 res.status(200);
                  res.json({message:"Success"});                
                }
                else
@@ -600,9 +616,10 @@ exports.updateUserDetails = function(req, res) {
   }
   else
   {
+    res.status(400);
     res.json({message:"Error : User could not be updated as parameter was not passed"});  
   }
-}   
+};   
 
 // Update mobile information for the registered users.
 exports.updateMobileNumber = function(req, res) {  
@@ -632,6 +649,7 @@ exports.updateMobileNumber = function(req, res) {
                if(result && result.rows && result.rows.length > 0)
                {
                  // Make sure the password is correct
+                 res.status(200);
                  res.json({message:"Success"});                
                }
                else
@@ -651,14 +669,16 @@ exports.updateMobileNumber = function(req, res) {
     }
     else
     {
+      res.status(400);
       res.json({message:"Error : Mobile number is not valid"});
     }
   }
   else
   {
+    res.status(400);
     res.json({message:"Error : Mobile number is not valid as parameter was not passed"});
   }
-}  
+};  
 
 // Update work information for the registered users.
 exports.updateWorkDetails = function(req, res) {  
@@ -685,6 +705,7 @@ exports.updateWorkDetails = function(req, res) {
              if(result && result.rows && result.rows.length > 0)
              {
                // Make sure the password is correct
+               res.status(200);
                res.json({message:"Success"});                
              }
              else
@@ -704,9 +725,10 @@ exports.updateWorkDetails = function(req, res) {
   }
   else
   {
+    res.status(400);
     res.json({message:"Error : Work information could not be updated as parameter was not passed"});  
   }
-}  
+};  
 
 // Update work information for the registered users.
 exports.updateEducationDetails = function(req, res) {  
@@ -733,6 +755,7 @@ exports.updateEducationDetails = function(req, res) {
              if(result && result.rows && result.rows.length > 0)
              {
                // Make sure the password is correct
+               res.status(200);
                res.json({message:"Success"});                
              }
              else
@@ -752,9 +775,183 @@ exports.updateEducationDetails = function(req, res) {
   }
   else
   {
+    res.status(400);
      res.json({message:"Error : Education information could not be updated as parameter was not passed"});  
   }
-}  
+};  
+
+// Update work information for the registered users.
+//Status 0=inactive, 1=active, 2=rip and 3=disabled
+exports.updateUserStatus = function(req, res) {  
+  // Set the client properties that came from the POST data
+  var userId = req.session.userid;
+  if(userId && userId!="" && req.body && req.body.educationdetailsJSON)
+  {     
+     var enableUser = req.body.enableuser;
+     
+    logger.debug("UserControl - Updating work details");
+     var updateStatusVal;
+     if(enableUser == '1' || enableUser == 1)
+     {
+       updateStatusVal = 'enabled';
+     }
+     else if(enableUser == '0' || enableUser == 0)
+     {
+       updateStatusVal = 'inactive';
+     }
+     else if(enableUser == '2' || enableUser == 2)
+     {
+       updateStatusVal = 'rip';
+     }
+     else if(enableUser == '3' || enableUser == 3)
+     {
+       updateStatusVal = 'disabled';
+     }
+      var pschemaName = conn.getDBSchema("");     
+      conn.getPGConnection(function(err, clientConn)
+      {    
+        if(err)
+        {
+          console.log("updateEducationDetails - Error while connection PG" + err);
+          logger.debug("updateEducationDetails - Error while connection PG" + err);
+        }
+        else
+        {
+          clientConn.queryAsync("UPDATE "+pschemaName+".tbusersecurity SET status=$1 WHERE extid = $2 RETURNING extid", [educationDetails,userId]).then(function(result)
+           {            
+             if(result && result.rows && result.rows.length > 0)
+             {
+               // Make sure the password is correct
+               res.status(200);
+               res.json({message:"Success"});                
+             }
+             else
+             {  
+                console.log("User was not "+updateStatusVal);
+                logger.debug("updateEducationDetails : User was not "+updateStatusVal);
+                res.json({message:"User could not be "+ updateStatusVal});  
+             }
+           }).catch(function(err)
+            {
+               console.log("User was not "+ updateStatusVal +" -> " + err);
+                logger.debug("updateEducationDetails : User was not "+ updateStatusVal +" -> " + err);
+                res.json({message:"Error : User was not "+ updateStatusVal });  
+            });
+        }
+      });    
+  }
+  else
+  {
+    res.status(400);
+     res.json({message:"Error : User status was not updated as parameter was not passed"});  
+  }
+};  
+
+// Update work information for the registered users.
+exports.profilePicUpload = function(req, res) {  
+  // Set the client properties that came from the POST data
+  var userId = req.session.userid;
+  if(userId && userId!="")
+  {  
+    var fstream;
+    try
+    {
+      req.pipe(req.busboy);
+      req.busboy.on('file', function (fieldname, file, filename, mimetype) {
+        var newfileext = filename.substr(filename.lastIndexOf("."), (filename.length - filename.lastIndexOf(".")));
+        //Check for valid file extensions.
+        if(newfileext.toLowerCase() == ".jpeg" || newfileext.toLowerCase() == ".jpg" || newfileext.toLowerCase() == ".gif" || newfileext.toLowerCase() == ".png")
+        {
+          //set the image upload path
+          var imagePath = __dirname.replace('Controller','ImageUploads');
+          console.log("Uploading: " + filename);          
+          var newfilename = userId+newfileext;
+          //Upload the file on server
+          fstream = fs.createWriteStream(imagePath + '/Album/' + newfilename);
+          file.pipe(fstream);
+          fstream.on('close', function () {
+              //Resize the file for profile picture.
+               gm(imagePath + '/Album/' + newfilename)
+                  .resize(200)
+                  .write(imagePath + '/ProfilePics/' + newfilename, function (err) 
+                    {
+                      //If resize and upload is successfull, then save the values in DB.
+                      if (err)
+                      { 
+                        console.log(err);
+                        logger.debug("Error while uploading Profile picture " +err);
+                         res.status(400);
+                         res.json({message:"Error : Profile picture could not be uploaded"});
+                      }
+                      else
+                      {
+                        conn.getPGConnection(function(err, clientConn)
+                        {    
+                          if(err)
+                          {
+                            console.log("profilePicUpload - Error while connection PG" + err);
+                            logger.debug("profilePicUpload - Error while connection PG" + err);
+                          }
+                          else
+                          {
+                            var pschemaName = conn.getDBSchema("");  
+                            //save the album / picture in mongo db.
+                            var profileAlbum = new album();
+                            profileAlbum.albumForUId = userId;                                                        
+                            profileAlbum.albumList = [{albumId:mongoose.Types.ObjectId(),
+                                      		albumName:"Profile Pictures", access:"Public", sharedWithUserId:[], description:"Profile Pictures Album", 
+                                          pictures:[{fileName:newfilename, filePath:imagePath + '/ProfilePics/' + newfilename,fileDescription:"Profile Picture",
+                                            totalViews:0,viewUserId:[],wows:0,wowsUserId:[]}]}];
+                            profileAlbum.saveAsync().then(function(profPicSaved)
+                            {
+                              //Save the details in PG.
+                               clientConn.queryAsync("UPDATE "+pschemaName+".tbuserdetails SET profpicfilename=$1,filetype=$2,filepath=$3 WHERE extid = $4 RETURNING extid", [newfilename,newfileext,imagePath + '/ProfilePics/' + newfilename,userId]).then(function(result)
+                               {            
+                                 if(result && result.rows && result.rows.length > 0)
+                                 {                                   
+                                   res.status(200);
+                                   res.json({message:"Success"});                
+                                 }
+                                 else
+                                 {  
+                                    console.log("User was not able to upload profile picture");
+                                    logger.debug("updateEducationDetails : User was not able to upload profile picture");
+                                    res.json({message:"User could not  able to upload profile picture"});  
+                                 }
+                               }).catch(function(err)
+                                {
+                                   console.log("User was not  able to upload profile picture + err");
+                                    logger.debug("updateEducationDetails : User was not able to upload profile picture" + err);
+                                    res.json({message:"Error : User was not able to upload profile picture"});  
+                                });
+                            }).catch(function(err){
+                                console.log("Error while saving profile picture " + err);
+                      			    logger.debug("profilePicUpload : Error : while saving profile picture " + err);
+                                res.json({message:"Error : while saving profile picture"}); 
+                            });  
+                          }
+                        });   
+                      }
+                  });
+              res.redirect('back');
+          });
+        }
+        else
+        {
+            res.status(400);
+            res.json({message:"Error : Filetype "+mimetype+" not supported. Please convert it to jpeg, jpg, gif or png"});        
+        }
+      });
+    }
+    catch(err){res.status(400);
+            res.json({message:"Error : Could not upload the file"});}
+  }
+  else
+  {
+      res.status(400);
+     res.json({message:"Error : Picture could not be uploaded as parameters were not set."});
+  }
+};
 
 //Validate Password
 function ValidatePassword(password)
@@ -763,13 +960,13 @@ function ValidatePassword(password)
   // at least six characters
   var re = /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,10}$/;
   return re.test(password);
-}
+};
 
 //Validate email
 function ValidateEmail(email) {
     var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i;
     return re.test(email);
-}
+};
 
 function ValidateMobileNumber(mobno) {
   if(mobno.match(/^[1-9]{1}[0-9]{11}$/))
@@ -777,7 +974,7 @@ function ValidateMobileNumber(mobno) {
       return true;
     }    
     return false;
-}
+};
 //Check if the date is valid and in correct format.
 function ValidateDateOfBirth(dob)
 {
@@ -813,7 +1010,7 @@ function ValidateDateOfBirth(dob)
   }
   catch(err){formattedDate = null;}
   return formattedDate;
-}
+};
 
 //Verify the password with hash values.
 //Parameters are plain text pass, hash values array and callback.
@@ -846,7 +1043,7 @@ function VerifyPassword(count, currentPwd, arrPasswords, isPasswordMatch, callba
     catch(err){
       callback(err, false);
     }       
-}
+};
 
 //This function creates a hash of input values required for Bcrypt.
 function HashKeywords(input)
@@ -856,7 +1053,7 @@ function HashKeywords(input)
      {
 	       if (err) 
          {
-           Console.log("error while creating hash for "+ input);
+           console.log("error while creating hash for "+ input);
          };
 	
 	       hashedVal = bcrypt.hash(input, salt, null, function(err, hash) 
@@ -868,4 +1065,4 @@ function HashKeywords(input)
     		      return hashedValue;
 	       });
 	   });
-}
+};

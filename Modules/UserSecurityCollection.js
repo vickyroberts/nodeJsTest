@@ -16,7 +16,7 @@ var securedUserSchema = new userSecSchema({
 	createdDate: {type:Date, default:Date.now}
 });
 
-securedUserSchema.methods.verifyPassword = function(password, cb) 
+exports.verifyPassword = function(password, cb) 
 {
   logger.debug("Verify Password");
   bcrypt.compare(password, this.password, function(err, isMatch) 
@@ -30,5 +30,5 @@ securedUserSchema.methods.verifyPassword = function(password, cb)
   });
 };
 
-module.exports = mongoose.model('UserSecurity',securedUserSchema,'UserSecurityCollection')
+module.exports = mongoose.model('UserSecurity',securedUserSchema,'UserSecurityCollection');
 

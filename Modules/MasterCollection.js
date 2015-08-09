@@ -19,5 +19,5 @@ var masterCollection = new masterSchema({
 	matriExpectedPreferedLocationTags:[String]	
 });
 
-module.exports = mongoose.model('MasterCollection',masterCollection,'MasterCollection')
+module.exports = mongoose.model('MasterCollection',masterCollection,'MasterCollection');
 

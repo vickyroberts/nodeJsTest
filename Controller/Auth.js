@@ -67,67 +67,90 @@ passport.use('basic', new basicStrategy(
 ));
 
 passport.use('client-basic', new basicStrategy(
-  function(username, password, callback) {
-    client.findOne({ id: username }, function (err, client) {
-      if (err) 
-      { 
-        Console.log('Error while passport client-basic.' + err);
-        return callback(err);                 
-      }
-
-      // No client found with that id or bad password
-      if (!client || client.secret !== password) 
-      {
-        Console.log('Client-basic - No client found with that id or bad password' + err); 
-        return callback(null, false); 
-      }
-
-      // Success
-      return callback(null, client);
-    });
+  function(username, password, callback) 
+  {
+    
+    var schemaName =  conn.getDBSchema(username); 
+     conn.getPGConnection(function(err, clientConn)
+      {    
+        if(err)
+        {
+          console.log("ClientSave - Error while connection PG" + err);
+          logger.debug("ClientSave - Error while connection PG" + err);
+        }
+        else
+        {
+          clientConn.queryAsync("SELECT us.userid,us.username,us.extid,cl.clientid,cl.name,cl.id,cl.secret from "+schemaName+".tbusersecurity us left join "+schemaName+".tbclient cl on us.userid = cl.userid where us.username = $1", [username]).then(function(result)
+           {
+             
+             if(result && result.rows && result.rows.length > 0)
+             {
+                client.userId = result.rows[0].userid;
+                client.secret = result.rows[0].secret;
+                client.id = result.rows[0].id;
+                client.name = result.rows[0].name;
+                // Success
+                return callback(null, client);
+             }
+             else
+             {
+                console.log('Error while passport client-basic.');
+                logger.debug('Auth - Error while passport client-basic.');
+                return callback(err);                 
+             }
+             clientConn.end();
+           }).catch(function(err)
+           {
+             console.log('Error while passport client-basic.' + err);
+             logger.debug('Auth - Error while passport client-basic.' + err);
+             return callback(err);                 
+           });
+        }
+      });
   }
 ));
 
 passport.use(new bearerStrategy({passReqToCallback:true},
   function(req, accessToken, callback) 
-  {    
-    token.findOne({value: accessToken }, function (err, token) {
-      if (err) 
-      { 
-        return callback(err); 
-      }
-
-      // No token found
-      if (!token) { return callback(null, false); }
-      var userName = req.body.username;
-      //Check if the id and username are same for the token. If either of the value is mismatch
-      //then throw an error.
-      user.findOne({ _id: token.userId, userName: userName }, function (err, userObj) 
-      {      
-        if (err) 
-        { 
-          return callback(err); 
+  {   
+    var loggedUsername = (req.body.username) ? req.body.username : req.session.username;
+    var schemaName =  conn.getDBSchema(loggedUsername); 
+     conn.getPGConnection(function(err, clientConn)
+      {    
+        if(err)
+        {
+          console.log("ClientSave - Error while connection PG" + err);
+          logger.debug("ClientSave - Error while connection PG" + err);
         }
-                
-        var tokenCreated = new Date(token.createdDate);
-        var currentDate = new Date();        
-        var diffMs = (currentDate-tokenCreated); 
-        var diffDays = Math.round(diffMs / 86400000);
-        var diffHrs = Math.round((diffMs % 86400000) / 3600000);
-        var diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);        
-        console.log("TODO ::  IF  hours is greater than 24 then refresh token or expire" + diffMins);
-           
-
-        // No user found
-        if (!userObj) 
-        { 
-          return callback(null, false); 
+        else
+        {
+          clientConn.queryAsync("SELECT us.userid,us.username,us.password,us.extid,tk.tokenid,tk.value,tk.userid,tk.clientid from "+schemaName+".tbusersecurity us left join "+schemaName+".tbtoken tk on us.userid = tk.userid where us.username = $1 AND tk.value = $2", [loggedUsername, accessToken]).then(function(result)
+           {
+             console.log("TODO ::  IF  hours is greater than 24 then refresh token or expire");
+             if(result && result.rows && result.rows.length > 0)
+             {
+                  var userObj = new user();
+                  userObj.userId = result.rows.userid;
+                  userObj.userName = result.rows.username;
+                  userObj.password = result.rows.password;                  
+                  // Simple example with no scope
+                  callback(null, userObj, { scope: '*' });
+             }
+             else
+             {
+                console.log('Error while passport client-basic.');
+                logger.debug('Auth - Error while passport client-basic.');
+                return callback(null, false);                 
+             }
+             clientConn.end();
+           }).catch(function(err)
+           {
+             console.log('Error while passport client-basic.' + err);
+             logger.debug('Auth - Error while passport client-basic.' + err);
+             return callback(err);                 
+           });
         }
-
-        // Simple example with no scope
-        callback(null, userObj, { scope: '*' });
       });
-    });
   }
 ));
 

@@ -8,7 +8,7 @@ var logger = require("../logger");
 
 var router = express.Router();
 
-router.get('/',function(req,res){res.json({message:'Successfully in the get function...!!'})});
+router.get('/',function(req,res){res.status(400), res.json({message:'Invalid url'})});
 
 //router.get('/users',userController.getUsersList);
 // Create endpoint handlers for /beers
@@ -48,6 +48,13 @@ router.route('/updateworkinfo')
 //Update registered user's education details
 router.route('/updateeducationinfo')
     .post(authController.isAuthenticated, userController.updateEducationDetails);
+    
+//Enable or disable user - Status 0 for inactive user added under tree only, 1 for enabled user, 2 for rip user and 3 for disabled. 
+router.route('/enableuser')
+    .post(authController.isAuthenticated, userController.updateUserStatus);
+    
+//Register user details.
+router.post('/uploadpicture', userController.profilePicUpload); 
 
 router.route('/clients')
     .post(authController.isAuthenticated, clientController.postClients)

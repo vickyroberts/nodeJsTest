@@ -53,3 +53,19 @@ exports.getPGConnection = function(callback)
 		logger.debug("Error while connecting to PG" + err);
 	}
 };
+
+exports.rollback = function(client) 
+{
+  //terminating a client connection will
+  //automatically rollback any uncommitted transactions
+  //so while it's not technically mandatory to call
+  //ROLLBACK it is cleaner and more correct
+  client.query('ROLLBACK', function() {
+    client.end();
+  });
+};
+
+exports.getDBSchema = function(username)
+{
+	return "famhook21";	
+};
