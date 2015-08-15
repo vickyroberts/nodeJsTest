@@ -15,7 +15,6 @@ module.exports.getFloatDetails= function(req, res) {
         else
         {
             res.json(user);
-        }
-        
+        }        
     });    
 };

@@ -46,13 +46,15 @@ app.listen(port);
 logger.debug("Application started at port " + port + ".. !!!");
 console.log("Static file server running at\n  => http://localhost:" + port + "/\nCTRL + C to shutdown");
 
-/* NEED TO UN-COMMENT IN PRODUCTION
+
+//NEED TO UN-COMMENT IN PRODUCTION
 process.on('uncaughtException', function (err) {
   console.error((new Date).toUTCString() + ' uncaughtException:', err.message);
   console.error(err.stack);
   logger.debug("UncaughtException :: " + err);
+  process.setMaxListeners(0);
   process.exit(1);
-})*/
+});
 
   
   

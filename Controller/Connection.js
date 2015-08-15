@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var pg = require('pg');
+var redis = require('redis');
 var logger = require("../logger");
 
 var pgConString = "postgres://famhook:famhook21@localhost:5444/famhook";
@@ -13,6 +14,8 @@ var options = {
   user: "admin",
   pass: "admin"
 };
+
+var redisClient;
 
 //console.log("In connection file");
 //console.log("STATE = " + mongoose.connection.readyState);
@@ -64,6 +67,33 @@ exports.rollback = function(client)
     client.end();
   });
 };
+
+exports.redisClientObject = function(port, host, callback)
+{
+	if(!host)
+	{
+		host = "127.0.0.1";
+		port = "6379";
+	}
+	try
+	{
+		if(!redisClient)
+		{
+			redisClient = redis.createClient(port, host);
+			redisClient.on('connect', function()
+			{
+				console.log('Redis connected');
+			});
+		}
+		callback(null, redisClient);
+	}
+	catch(err){
+		console.log("Error while Redic connection" + err);
+		logger.debug("Error while connecting to Redis" + err);
+		callback("Error while connecting to Redis");
+	}
+};
+
 
 exports.getDBSchema = function(username)
 {
