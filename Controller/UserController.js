@@ -209,7 +209,7 @@ exports.getUserDetails = function(req, res) {
         }
         else
         {
-          clientConn.queryAsync("SELECT us.extid, us.username,us.pageurlname, ud.firstname, ud.lastname, ud.gender, ud.addressline, ud.city, ud.state, co.countryid, co.countryname, ud.profpicfilename, ud.filetype,ud.filepath, ud.albumid, ud.accounttype,ud.qualificationtags, ud.professiontags, ud.skilltags,ud.joblocationpreftags, ud.matriexpectedqualification, ud.matriexpectedjob, ud.matriexpectedpreferedlocation,ud.groupstaggedto, ud.dateofbirth, ud.mobilenumber, ud.workdetails, ud.educationdetails, tz.timezoneid, tz.timezone, tz.timezoneminutes FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid=ud.userid LEFT JOIN "+pschemaName+".tbcountryid co ON ud.country = co.countryid LEFT JOIN "+pschemaName+".tbtimezone tz ON ud.timezoneid = tz.timezoneid WHERE us.extid = $1 AND ud.issuperuser = false", [userId]).then(function(result)
+          clientConn.queryAsync("SELECT us.extid, us.username,us.pageurlname, ud.firstname, ud.lastname, ud.gender, ud.addressline, ud.city, ud.state, co.countryid, co.countryname, ud.profpicfilename, ud.filetype,ud.filepath, ud.albumid, ud.accounttype,ud.qualificationtags, ud.professiontags, ud.skilltags,ud.joblocationpreftags, ud.matriexpectedqualification, ud.matriexpectedjob, ud.matriexpectedpreferedlocation,ud.groupstaggedto, ud.dateofbirth, ud.mobilenumber, ud.workdetails, ud.educationdetails, tz.timezoneid, tz.timezone, tz.timezoneminutes FROM "+pschemaName+".tbusersecurity us LEFT JOIN "+pschemaName+".tbuserdetails ud ON us.userid=ud.userid LEFT JOIN "+pschemaName+".tbcountryid co ON ud.country = co.countryid LEFT JOIN "+pschemaName+".tbtimezone tz ON ud.timezoneid = tz.timezoneid WHERE us.status <> 0 AND us.extid = $1 AND ud.issuperuser = false", [userId]).then(function(result)
            {              
               var userdetails = {};
              if(result && result.rows && result.rows.length > 0)
@@ -484,7 +484,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                 {
                                   var oldPasswordJson = '{"oldpasswords":["'+secreateInfo.password+'"]}';
                                   clientConn.query("INSERT INTO "+pschemaName+".tbusersecurity (userid, username, password, extid, oldpasswords, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING extid",
-                                  [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), oldPasswordJson, 1], function(err, result){
+                                  [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), oldPasswordJson, 0], function(err, result){
                                     if(err)
                                     {
                                       console.log("Error while inserting user secrets " + err);
@@ -784,11 +784,11 @@ exports.updateEducationDetails = function(req, res) {
 //Status 0=inactive, 1=active, 2=rip and 3=disabled
 exports.updateUserStatus = function(req, res) {  
   // Set the client properties that came from the POST data
-  var userId = req.session.userid;
-  if(userId && userId!="" && req.body && req.body.educationdetailsJSON)
-  {     
-     var enableUser = req.body.enableuser;
-     
+  var userId = (req.session.userid)?req.session.userid : req.query.uid;
+  //If its not post request then get the value from get querystring.
+  var enableUser = (req.body.enableuser)? req.body.enableuser : req.query.stats;
+  if(userId && userId!="" && req.body && enableUser)
+  {  
     logger.debug("UserControl - Updating work details");
      var updateStatusVal;
      if(enableUser == '1' || enableUser == 1)
@@ -817,7 +817,7 @@ exports.updateUserStatus = function(req, res) {
         }
         else
         {
-          clientConn.queryAsync("UPDATE "+pschemaName+".tbusersecurity SET status=$1 WHERE extid = $2 RETURNING extid", [educationDetails,userId]).then(function(result)
+          clientConn.queryAsync("UPDATE "+pschemaName+".tbusersecurity SET status=$1 WHERE extid = $2 RETURNING extid", [enableUser,userId]).then(function(result)
            {            
              if(result && result.rows && result.rows.length > 0)
              {

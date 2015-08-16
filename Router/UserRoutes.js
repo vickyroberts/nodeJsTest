@@ -57,7 +57,10 @@ router.route('/enableuser')
 //Send email to the user    
 router.route('/sendemail')
     .post(authController.isAuthenticated, emailController.sendEmailAlert);
-   
+
+//Activate user account
+router.get('/activateacct', userController.updateUserStatus);
+  
     
 //Register user details.
 router.post('/uploadpicture', userController.profilePicUpload); 
