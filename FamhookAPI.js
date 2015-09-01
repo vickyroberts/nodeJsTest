@@ -5,6 +5,7 @@ var bcrypt = require('bcrypt-nodejs');
 var busboy = require('connect-busboy');
 var userRoutes = require('./Router/UserRoutes.js');
 var floatRoutes = require('./Router/FloatRoute.js');
+var relationRoutes = require('./Router/RelationRoute.js');
 var masterRoutes = require('./Router/MasterRoute.js');
 var passport = require('passport');
 var session = require('express-session');
@@ -38,6 +39,7 @@ app.use(session({
 
 app.use('/api',userRoutes);
 app.use('/api/floats/',floatRoutes);
+app.use('/api/relations/',relationRoutes);
 app.use('/api/masters/',masterRoutes);
 
 var port = 3000;

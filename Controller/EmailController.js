@@ -8,7 +8,6 @@ var fs = require('fs');
 var nodemailer = require('nodemailer');
 var smtpTransport = require('nodemailer-smtp-transport');
 //Custom packages
-var masterCol = require("../Modules/MasterCollection.js");
 var logger = require("../logger");
 var propertyFile = require("../PropertiesValue.js");
 var conn = require("./Connection.js");

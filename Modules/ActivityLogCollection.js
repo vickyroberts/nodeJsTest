@@ -2,17 +2,18 @@ var mongoose = require("mongoose");
 //Schema for storing user secrets
 var activitySchema = mongoose.Schema;
 
-//Create the usersecurity collection that will save the user credential details.
-//This function will also add a default superuser entry.	
+//Create the activity collection that will save the user activities.
+//This detail will also be used to send email notification.	
 var activityCollection = new activitySchema({
-	logId: Number,
-	activityType: String,	
-	byUserId: Number,
-	onFloatId: Number,
+	activityId: {type: mongoose.Schema.Types.ObjectId, required:true, unique:true},
+	activityTypeName: String,	
+	userId: String,
+	onFloatId:String,	
 	description: String,
-	elapsedTimeSeconds: Number,	
-	sendNotificationToUserId:[Number],	
-	activityStatus: String,
+	sendNotification:Boolean,
+	notificationPriority: Number,		
+	notificationTo:[String],	
+	processCompleted: String,
 	createdDate: {type:Date, default:Date.now}
 });
 

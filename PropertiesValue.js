@@ -11,6 +11,11 @@ var configValues = {
 	forgotPasswordMessage: 'We received a request to reset the password for your account.<br><br>If you requested a reset, click the link below. If you didn’t make this request, please ignore this email.',
 	forgotPasswordSuject: 'Famhook : Reset your password',		
 	forgotPasswordLink:'http://localhost:3000/api/resetpassword?uid={userid}',
+	redisExpiryMasterSecs:3600,
+	defaultTreeName:'Family',
+	accountTypePersonal:'Personal',
+	defaultPassword:'p@ssw0rd',
+	defaultTreeColor:'red',
 };
 
 module.exports = configValues;

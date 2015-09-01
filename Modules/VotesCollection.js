@@ -4,7 +4,7 @@ var floatVotesSchema = mongoose.Schema;
 
 //Create the Floats message collection that will save the votes.
 var votesCollect = new floatVotesSchema({
-	floatId: {type: Number, required:true, unique:true, index:true},	
+	floatId: {type: mongoose.Schema.Types.ObjectId, required:true, unique:true},	
 	floatType: {type: String, required:true, index:true, default:"job"},
 	authorId: {type: String, required:true, index:true},
 	question: {type: String, required:true, index:true},

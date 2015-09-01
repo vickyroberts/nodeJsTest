@@ -13,6 +13,7 @@ var userDetails = require("../Modules/UserDetailsCollection.js");
 var album = require("../Modules/Album.js");
 var logger = require("../logger");
 var conn = require("./Connection.js");
+var utility = require("./Utility.js");
 
 promise.promisifyAll(mongoose);
 promise.promisifyAll(bcrypt);
@@ -58,7 +59,7 @@ exports.checkUserorEmailAvailable = function(req, res) {
            {
              res.status(200);
              // Make sure the password is correct               
-               res.json({message:"Value already exists"});
+               res.json({status:'Error',message:"Value already exists"});
            }
            else
            {             
@@ -69,7 +70,7 @@ exports.checkUserorEmailAvailable = function(req, res) {
           {
              console.log("Value not found" + err);
               logger.debug("UserControl login : Value for "+fieldToCheck+" not found = " + userName);
-              res.json({message:"Error : Value for "+fieldToCheck+" not found"});  
+              res.json({status:'Error',message:"Value for "+fieldToCheck+" not found"});  
           });
       }
     });
@@ -77,7 +78,7 @@ exports.checkUserorEmailAvailable = function(req, res) {
   else
   {
     res.status(400);
-     res.json({message:"Error : Parameter username and password cannot be blank"});
+     res.json({status:'Error',message:"Error : Parameter username and password cannot be blank"});
   }
 };   
 
@@ -111,14 +112,15 @@ exports.postUserLogin = function(req, res) {
                 {            
                     if(!isMatch)
                     {
-                      res.json({message:"Error : Username or password not found"}); 
+                      res.json({status:'Error',message:"Username or password not found"}); 
                     }
                     else
                     {
                       req.session.userid = result.rows[0].extid;
+                      req.session.ruid = result.rows[0].userid;
                       req.session.username = userName;
                       res.status(200);
-                      res.json({message:{"userid":result.rows[0].extid}}); 
+                      res.json({status:'Success',message:{"userid":result.rows[0].extid}}); 
                     }
                 });
            }
@@ -126,13 +128,13 @@ exports.postUserLogin = function(req, res) {
            {
               console.log("Username or password not found");
               logger.debug("UserControl login : Username or password not found = " + userName);
-              res.json({message:"Username or password not found"});  
+              res.json({status:'Error',message:"Username or password not found"});  
            }
          }).catch(function(err)
           {
              console.log("Username or password not found" + err);
               logger.debug("UserControl login : Username or password not found = " + userName);
-              res.json({message:"Error : Username or password not found"});  
+              res.json({status:'Error',message:"Username or password not found"});  
           });
       }
     });
@@ -140,7 +142,7 @@ exports.postUserLogin = function(req, res) {
   else
     {
       res.status(400);
-      res.json({message:"Error : Parameter username and password cannot be blank"});
+      res.json({status:'Error',message:"Parameter username and password cannot be blank"});
     }
 };   
 
@@ -158,24 +160,24 @@ exports.postUserRegister = function(req, res) {
       var countryId = req.body.countryid;
       var schemaName = conn.getDBSchema(userName);
       
-      if(userName == null || userName == "" || !ValidateEmail(userName))
+      if(userName == null || userName == "" || !utility.ValidateEmail(userName))
       {         
          logger.debug("UserControl register : Username is invalid = " + userName);
-         res.json({message:"Error : Username "+userName+" is invalid"});   
+         res.json({status:'Error',message:"Username "+userName+" is invalid"});   
          res.end();
       }
-      else if(password == null || password == "" || !ValidatePassword(password))
+      else if(password == null || password == "" || !utility.ValidatePassword(password))
       {
         // at least one number, one lowercase and one uppercase letter
         // at least six characters  
         logger.debug("UserControl register : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase");
-         res.json({message:"Error : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
+         res.json({status:'Error',message:"Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
          res.end();   
       }
       else if(fName == null || fName == "" || lName == null || lName == "")
       {
         logger.debug("UserControl register : FirstName or LastName cannot be blank");
-         res.json({message:"Error : FirstName or LastName cannot be blank"});
+         res.json({status:'Error',message:"FirstName or LastName cannot be blank"});
          res.end();   
       }
       else
@@ -187,7 +189,7 @@ exports.postUserRegister = function(req, res) {
     else
     {
       res.status(400);
-      res.json({message:"Error : Parameter username and password cannot be blank"});
+      res.json({status:'Error',message:"Parameter username and password cannot be blank"});
     }
 };
 
@@ -225,13 +227,13 @@ exports.getUserDetails = function(req, res) {
              {
                 console.log("User info not found");
                 logger.debug("UserControl details : User info not found");
-                res.json({"userdetails":null});  
+                res.json({status:'Error',"userdetails":null});  
              }
            }).catch(function(err)
             {
                console.log("User info not found " + err);
                 logger.debug("UserControl details : User info not found "+ err);
-                res.json({message:"Error : User info not found " + err});  
+                res.json({status:'Error',message:"User info not found " + err});  
             });
         }
       });
@@ -239,7 +241,7 @@ exports.getUserDetails = function(req, res) {
   else
   {
     res.status(400);
-    res.json({message:"Error : User info not found as parameter was not passed"});
+    res.json({status:'Error',message:"User info not found as parameter was not passed"});
   }
 };   
 
@@ -276,13 +278,13 @@ exports.changePasswordRegisterPG = function(req, res) {
                       // at least one number, one lowercase and one uppercase letter
                       // at least six characters  
                       logger.debug("UserControl newPassword : Password is not valid");
-                       res.json({message:"Error : Password is not valid"});
+                       res.json({status:'Error',message:"Password is not valid"});
                        res.end();   
                     }      
-                    else if(!ValidatePassword(retNewPassword))
+                    else if(!utility.ValidatePassword(retNewPassword))
                     {
                       logger.debug("UserControl newPassword : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase");
-                       res.json({message:"Error : Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
+                       res.json({status:'Error',message:"Password should have min 6 and max 10 characters, one number, one lowercase and one uppercase"});
                        res.end();   
                     }
                     else
@@ -302,13 +304,13 @@ exports.changePasswordRegisterPG = function(req, res) {
                               //get the json data from database.
                                passwordList = result.rows[0].oldpasswords.oldpasswords.slice();                               
                                //Verify if the new password is used in last 5 password list.
-                               VerifyPassword(0, retNewPassword, passwordList, false, function(err, isMatch)
+                               utility.VerifyPassword(0, retNewPassword, passwordList, false, function(err, isMatch)
                                  { 
                                    if(err)
                                    {
                                       console.log("Error while updating the password " + err);
                                       logger.debug("Error while updating the password " + err);
-                                      res.json({message:"Error : Error while updating the password " + err});
+                                      res.json({status:'Error',message:"Error while updating the password " + err});
                                    }
                                    else
                                    {
@@ -316,7 +318,7 @@ exports.changePasswordRegisterPG = function(req, res) {
                                        {
                                             console.log("New password was set earlier. Password should not be from last 5 passwords");
                                       			logger.debug("changePasswordRegister : Error : New password was set earlier. Password should not be from last 5 passwords");
-                                            res.json({message:"Error : New password was set earlier. Password should not be from last 5 passwords"});  
+                                            res.json({status:'Error',message:"New password was set earlier. Password should not be from last 5 passwords"});  
                                        }
                                        else
                                        {
@@ -333,13 +335,13 @@ exports.changePasswordRegisterPG = function(req, res) {
                                                     {
                                                       logger.debug("CreateCollectionsAndRecord : Password updated successfully");
                                                       res.status(200);                                
-                                                      res.json({message:"Password updated successfully..!!"});
+                                                      res.json({status:'Success',message:"Password updated successfully..!!"});
                                                     }
                                                     else
                                                     {
                                                       console.log("Error while updating password");
                                                 			logger.debug("changePasswordRegister : Error : while updating the password");
-                                                      res.json({message:"Error : while updating the password"});  
+                                                      res.json({status:'Error',message:"Error while updating the password"});  
                                                     }
                                                     clientConn.end();
                                                 }).catch(function(err)
@@ -347,21 +349,21 @@ exports.changePasswordRegisterPG = function(req, res) {
                                                    clientConn.end();
                                                   console.log("Error while updating password" + err);
                                             			logger.debug("changePasswordRegister : Error : while updating the password" + err);
-                                                  res.json({message:"Error : while updating the password"});                    
+                                                  res.json({status:'Error',message:"Error while updating the password"});                    
                                                 });
                                            }  
                                            catch(err)
                                            {
                                               console.log("Error while updating password" + err);
                                             	logger.debug("changePasswordRegister : Error : while updating the password" + err);
-                                              res.json({message:"Error : while updating the password"});
+                                              res.json({status:'Error',message:"Error while updating the password"});
                                            }
                                          }
                                          else
                                          {
                                               console.log("Error while updating password");
                                         			logger.debug("changePasswordRegister : Error : while updating the password");
-                                              res.json({message:"Error : while updating the password"});  
+                                              res.json({status:'Error',message:"Error while updating the password"});  
                                          }
                                           
                                        }
@@ -375,21 +377,21 @@ exports.changePasswordRegisterPG = function(req, res) {
                          {
                               console.log("error in password hashing");
                               logger.debug("UserControl newPassword : Password is not valid");
-                              res.json({message:"Error : Password is not valid"});
+                              res.json({status:'Error',message:"Error Password is not valid"});
                          });        
            }
            else
            {
               console.log("Username does not exists");
               logger.debug("UserControl changePasswordRegister : Username does not exists = " + retUserName);
-              res.json({message:"Error : Username does not exists"});
+              res.json({status:'Error',message:"Username does not exists"});
               return null;
            }
          }).catch(function(err)
            {
                 console.log("Username does not exists");
                 logger.debug("UserControl newPassword : Username does not exists " + retUserName);
-                res.json({message:"Error : Username does not exists"});
+                res.json({status:'Error',message:"Username does not exists"});
            });
       }
     });  
@@ -397,7 +399,7 @@ exports.changePasswordRegisterPG = function(req, res) {
   else
   {
     res.status(400);
-    res.json({message:"Error : Could not update the password as parameter was not passed"}); 
+    res.json({status:'Error',message:"Could not update the password as parameter was not passed"}); 
   }
 };
 
@@ -428,7 +430,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
              {
                 console.log("Error while verifying user " + err);
                 logger.debug("UserControl register : Error while verifying user = " + err);
-                res.json({message:"Error : Error while verifying user"}); 
+                res.json({status:'Error',message:"Error while verifying user"}); 
              }   
              else
              {
@@ -436,7 +438,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                {
                   console.log("Username already exists");
                   logger.debug("UserControl register : Username already exists = " + pUserName);
-                  res.json({message:"Error : Username already exists"});  
+                  res.json({status:'Error',message:"Username already exists"});  
                }
                else
                {
@@ -490,7 +492,7 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                       console.log("Error while inserting user secrets " + err);
                                       logger.debug("UserControl register : Error while inserting user secrets " + err);
                                       conn.rollback(clientConn);
-                                      res.json({message:"Error : Error while inserting user secrets"}); 
+                                      res.json({status:'Error',message:"Error while inserting user secrets"}); 
                                     }
                                     else
                                     {
@@ -504,14 +506,14 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                                             console.log("Error while inserting user details " + err);
                                             logger.debug("UserControl register : Error while inserting user details " + err);
                                             conn.rollback(clientConn);
-                                            res.json({message:"Error : Error while inserting user details"}); 
+                                            res.json({status:'Error',message:"Error while inserting user details"}); 
                                           }
                                           else
                                           {
                                             res.status(200);
                                             console.log("User records saved successfully");
                                             logger.debug("Success : User records saved successfully");
-                                            res.json({message:{"userid":extUserId}}); 
+                                            res.json({status:'Success',message:{"userid":extUserId}}); 
                                           }
                                           clientConn.query('COMMIT', clientConn.end.bind(clientConn));
                                         });
@@ -526,20 +528,20 @@ function CreateCollectionsAndRecordPG(res, pUserName, pPassword, pFirstName, pLa
                             clientConn.end();
                             console.log("Error while inserting user info");
                             logger.debug("UserControl register : Error while inserting user info");
-                            res.json({message:"Error : Error while inserting user info"}); 
+                            res.json({status:'Error',message:"Error : Error while inserting user info"}); 
                           }
                           
                         }).catch(function(err)
                            {
                              console.log("Error while saving the records " + err);
                              logger.debug("CreateCollectionsAndRecordPG : Error while saving user info" + err);
-                             res.json({message:"Error : Error while saving user info"});                 
+                             res.json({status:'Error',message:"Error : Error while saving user info"});                 
                            });
                    }).catch(function(err)
                      {
                        console.log("GenSalth hashed password error " + err);
                        logger.debug("CreateCollectionsAndRecordPG : hash function failed" + err);
-                       res.json({message:"Error : Hash function failed"});                 
+                       res.json({status:'Error',message:"Error : Hash function failed"});                 
                      });
                }
              }                 
@@ -573,7 +575,7 @@ exports.updateUserDetails = function(req, res) {
      var timezoneId = req.body.timezoneid;
     logger.debug("UserControl - Searching for login post");
     
-    var dateFormated = ValidateDateOfBirth(dateOfbirth);
+    var dateFormated = utility.ValidateDateOfBirth(dateOfbirth);
     if(dateFormated)
     {
         var pschemaName = conn.getDBSchema("");     
@@ -592,32 +594,32 @@ exports.updateUserDetails = function(req, res) {
                {
                  // Make sure the password is correct
                  res.status(200);
-                 res.json({message:"Success"});                
+                 res.json({status:'Success',message:"Success"});                
                }
                else
                {
                   console.log("User could not be updated");
                   logger.debug("updateUser : User could not be updated");
-                  res.json({message:"User could not be updated"});  
+                  res.json({status:'Error',message:"User could not be updated"});  
                }
              }).catch(function(err)
               {
                  console.log("User could not be updated" + err);
                   logger.debug("updateUser : User could not be updated = " + err);
-                  res.json({message:"Error : User could not be updated"});  
+                  res.json({status:'Error',message:"User could not be updated"});  
               });
           }
         });
     }
     else
     {
-      res.json({message:"Error : Date of birth is not valid"});
+      res.json({status:'Error',message:"Date of birth is not valid"});
     }
   }
   else
   {
     res.status(400);
-    res.json({message:"Error : User could not be updated as parameter was not passed"});  
+    res.json({status:'Error',message:"User could not be updated as parameter was not passed"});  
   }
 };   
 
@@ -631,7 +633,7 @@ exports.updateMobileNumber = function(req, res) {
      
     logger.debug("UserControl - Searching for login post");
     
-    var isValidMob = ValidateMobileNumber(mobilenumber);
+    var isValidMob = utility.ValidateMobileNumber(mobilenumber);
     if(isValidMob)
     {
         var pschemaName = conn.getDBSchema("");     
@@ -650,19 +652,19 @@ exports.updateMobileNumber = function(req, res) {
                {
                  // Make sure the password is correct
                  res.status(200);
-                 res.json({message:"Success"});                
+                 res.json({status:'Success',message:"Success"});                
                }
                else
                {
                   console.log("Mobile number could not be updated");
                   logger.debug("updateUser : Mobile number could not be updated");
-                  res.json({message:"Mobile number could not be updated"});  
+                  res.json({status:'Error',message:"Mobile number could not be updated"});  
                }
              }).catch(function(err)
               {
                  console.log("Mobile number could not be updated" + err);
                   logger.debug("updateUser : Mobile number could not be updated = " + err);
-                  res.json({message:"Error : Mobile number could not be updated"});  
+                  res.json({status:'Error',message:"Error : Mobile number could not be updated"});  
               });
           }
         });
@@ -670,13 +672,13 @@ exports.updateMobileNumber = function(req, res) {
     else
     {
       res.status(400);
-      res.json({message:"Error : Mobile number is not valid"});
+      res.json({status:'Error',message:"Error : Mobile number is not valid"});
     }
   }
   else
   {
     res.status(400);
-    res.json({message:"Error : Mobile number is not valid as parameter was not passed"});
+    res.json({status:'Error',message:"Error : Mobile number is not valid as parameter was not passed"});
   }
 };  
 
@@ -706,19 +708,19 @@ exports.updateWorkDetails = function(req, res) {
              {
                // Make sure the password is correct
                res.status(200);
-               res.json({message:"Success"});                
+               res.json({status:'Success',message:"Success"});                
              }
              else
              {
                 console.log("Work information could not be updated");
                 logger.debug("updateWorkDetails : Work information could not be updated");
-                res.json({message:"Work information could not be updated"});  
+                res.json({status:'Error',message:"Work information could not be updated"});  
              }
            }).catch(function(err)
             {
                console.log("Work information could not be updated" + err);
                 logger.debug("updateUser : Work information could not be updated = " + err);
-                res.json({message:"Error : Work information could not be updated"});  
+                res.json({status:'Error',message:"Error : Work information could not be updated"});  
             });
         }
       });    
@@ -726,7 +728,7 @@ exports.updateWorkDetails = function(req, res) {
   else
   {
     res.status(400);
-    res.json({message:"Error : Work information could not be updated as parameter was not passed"});  
+    res.json({status:'Error',message:"Error : Work information could not be updated as parameter was not passed"});  
   }
 };  
 
@@ -756,19 +758,19 @@ exports.updateEducationDetails = function(req, res) {
              {
                // Make sure the password is correct
                res.status(200);
-               res.json({message:"Success"});                
+               res.json({status:'Success',message:"Success"});                
              }
              else
              {
                 console.log("Education information could not be updated");
                 logger.debug("updateEducationDetails : Work information could not be updated");
-                res.json({message:"Education information could not be updated"});  
+                res.json({status:'Error',message:"Education information could not be updated"});  
              }
            }).catch(function(err)
             {
                console.log("Education information could not be updated" + err);
                 logger.debug("updateEducationDetails : Education information could not be updated = " + err);
-                res.json({message:"Error : Education information could not be updated"});  
+                res.json({status:'Error',message:"Error : Education information could not be updated"});  
             });
         }
       });    
@@ -776,7 +778,7 @@ exports.updateEducationDetails = function(req, res) {
   else
   {
     res.status(400);
-     res.json({message:"Error : Education information could not be updated as parameter was not passed"});  
+     res.json({status:'Error',message:"Error : Education information could not be updated as parameter was not passed"});  
   }
 };  
 
@@ -823,19 +825,19 @@ exports.updateUserStatus = function(req, res) {
              {
                // Make sure the password is correct
                res.status(200);
-               res.json({message:"Success"});                
+               res.json({status:'Success',message:"Success"});                
              }
              else
              {  
                 console.log("User was not "+updateStatusVal);
                 logger.debug("updateEducationDetails : User was not "+updateStatusVal);
-                res.json({message:"User could not be "+ updateStatusVal});  
+                res.json({status:'Error',message:"User could not be "+ updateStatusVal});  
              }
            }).catch(function(err)
             {
                console.log("User was not "+ updateStatusVal +" -> " + err);
                 logger.debug("updateEducationDetails : User was not "+ updateStatusVal +" -> " + err);
-                res.json({message:"Error : User was not "+ updateStatusVal });  
+                res.json({status:'Error',message:"Error : User was not "+ updateStatusVal });  
             });
         }
       });    
@@ -843,7 +845,7 @@ exports.updateUserStatus = function(req, res) {
   else
   {
     res.status(400);
-     res.json({message:"Error : User status was not updated as parameter was not passed"});  
+     res.json({status:'Error',message:"Error : User status was not updated as parameter was not passed"});  
   }
 };  
 
@@ -881,7 +883,7 @@ exports.profilePicUpload = function(req, res) {
                         console.log(err);
                         logger.debug("Error while uploading Profile picture " +err);
                          res.status(400);
-                         res.json({message:"Error : Profile picture could not be uploaded"});
+                         res.json({status:'Error',message:"Error : Profile picture could not be uploaded"});
                       }
                       else
                       {
@@ -951,118 +953,4 @@ exports.profilePicUpload = function(req, res) {
       res.status(400);
      res.json({message:"Error : Picture could not be uploaded as parameters were not set."});
   }
-};
-
-//Validate Password
-function ValidatePassword(password)
-{
-  // at least one number, one lowercase and one uppercase letter
-  // at least six characters
-  var re = /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,10}$/;
-  return re.test(password);
-};
-
-//Validate email
-function ValidateEmail(email) {
-    var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i;
-    return re.test(email);
-};
-
-function ValidateMobileNumber(mobno) {
-  if(mobno.match(/^[1-9]{1}[0-9]{11}$/))
-    {
-      return true;
-    }    
-    return false;
-};
-//Check if the date is valid and in correct format.
-function ValidateDateOfBirth(dob)
-{
-  var formattedDate = null;
-  try
-  {
-    var date = new Date();  	
-    var splitDate = dob.split('-');
-    if(splitDate.length == 3)
-    {
-      if(splitDate[0] < 0 && splitDate[0] > 12)
-      {
-        formattedDate = null;
-      }
-      else if(splitDate[1] < 0 && splitDate[1] > 31)
-      {
-        formattedDate = null;
-      }
-      else if(splitDate[2] < 1920 && splitDate[2] > (date.getFullYear()-1))
-      {
-        formattedDate = null;
-      }
-      else
-      {
-        formattedDate = splitDate[2]+"-"+splitDate[0]+"-"+splitDate[1];
-        formattedDate = formattedDate + " 00:00:00";
-      }
-    }
-    else
-    {
-      formattedDate = null;
-    }
-  }
-  catch(err){formattedDate = null;}
-  return formattedDate;
-};
-
-//Verify the password with hash values.
-//Parameters are plain text pass, hash values array and callback.
-function VerifyPassword(count, currentPwd, arrPasswords, isPasswordMatch, callback)
-{ 
-    //Recursive code for completing the looping in callback mechanism.
-    try
-    {
-      bcrypt.compare(currentPwd, arrPasswords[count], function(err, isMatch) 
-       {
-        if (err) 
-    	  {     		
-    		  logger.debug("Verify password failed");
-          callback(err);
-    	  }
-        
-        //check if the last 4 password matches the new password. The 4 is harcoded.
-        //If we have to increase last 4 option to "n" number of option, then change the below 4 to "n".
-        isPasswordMatch = isMatch;
-        if(count == 4 || count == arrPasswords.length-1 || isPasswordMatch)
-        {
-          callback(null, isPasswordMatch);
-        }      
-        else
-        {          
-           VerifyPassword(count+1, currentPwd, arrPasswords, isPasswordMatch, callback);
-        }
-      });
-    }
-    catch(err){
-      callback(err, false);
-    }       
-};
-
-//This function creates a hash of input values required for Bcrypt.
-function HashKeywords(input)
-{		
-	//Password changed so we need to hash it  
-	  bcrypt.genSalt(5, function(err, salt) 
-     {
-	       if (err) 
-         {
-           console.log("error while creating hash for "+ input);
-         };
-	
-	       hashedVal = bcrypt.hash(input, salt, null, function(err, hash) 
-    	    {
-        	    if (err)
-        	    { return "";}
-    	    
-    	        var hashedValue = hash;
-    		      return hashedValue;
-	       });
-	   });
 };

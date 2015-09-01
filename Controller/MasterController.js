@@ -5,9 +5,9 @@ var bodyParser = require('body-parser');
 var promise = require("bluebird");
 var pg = require('pg');
 //Custom packages
-var masterCol = require("../Modules/MasterCollection.js");
 var logger = require("../logger");
 var conn = require("./Connection.js");
+var propertyFile = require("../PropertiesValue.js");
 
 promise.promisifyAll(mongoose);
 promise.promisifyAll(pg);
@@ -46,6 +46,118 @@ exports.getMasterListJson = function(req, res)
       logger.debug("MasterControl - Error while caching existing master list " + err);
     }    
 };
+
+
+//Get the list of Activity master data from Cache or database.
+exports.getActivityMasterListJson = function(req, res) 
+{
+    try
+    {
+    //Check if the values are available in Redis cache else regenerate the list.
+      conn.redisClientObject(null, null, function(err, client)
+      {
+        if(!err)
+        {
+          client.get('masterActivityData', function(err, result)
+            {
+              if(err || !result)
+              {
+                getActivityJsonList(function(err, result){
+                  
+                  if(err)
+                  {
+                    res.send({status:'Error',message: "Error : Error while getting activity master list"});
+                  }
+                  else
+                  {
+                    res.send({status:'Success',message: JSON.parse(result)});
+                  }
+                });
+              }
+            });
+        }
+        else
+        {
+              getActivityJsonList(function(err, result){                  
+                  if(err)
+                  {
+                    res.send({status:'Error',message: "Error : Error while getting activity master list"});
+                  }
+                  else
+                  {
+                    res.send({status:'Success',message: JSON.parse(result)});
+                  }
+                });
+        }
+      });
+    }
+    catch(err)
+    {
+      console.log("MasterControl - Error while caching activity master list " + err);
+      logger.debug("MasterControl - Error while caching activity master list " + err);
+    }
+}
+
+// Get the country list from country table.
+function getActivityJsonList(callback){  
+      
+    logger.debug("MasterControl - start activity list");    
+   var pschemaName = conn.getDBSchema("");     
+    conn.getPGConnection(function(err, clientConn)
+    {    
+      if(err)
+      {
+        console.log("MasterControl - Error while connection PG" + err);
+        logger.debug("MasterControl - Error while connection PG" + err);
+      }
+      else
+      {
+        clientConn.queryAsync("SELECT * from "+pschemaName+".tbactivitytype").then(function(result)
+         {            
+           //If countries are available, then create a JSON structure for the list.
+           if(result && result.rows && result.rows.length > 0)
+           {              
+              var activityJson = '{"activityMaster":[';
+              for(var loopCnt=0;loopCnt<result.rows.length;loopCnt++)
+              {                
+                activityJson = activityJson + '{"activityId":'+result.rows[loopCnt].activitytypeid+',"activityName":"'+result.rows[loopCnt].activityname+'","sendNotification":'+result.rows[loopCnt].sendnotification+',"notificationPriority":'+result.rows[loopCnt].notificationpriority+'}';
+                if(loopCnt < (result.rows.length - 1))
+                {
+                  activityJson = activityJson + ',';
+                }
+              }
+              activityJson = activityJson + ']}';   
+              
+              
+               conn.redisClientObject(null, null, function(err, client)
+                {
+                  if(!err)
+                  {
+                    client.set('masterActivityData', activityJson);
+                    client.expire('masterActivityData', propertyFile.redisExpiryMasterSecs);
+                    callback(null,activityJson);
+                  } 
+                  else
+                  {
+                    console.log('could not write to redis')
+                    callback(null,activityJson);
+                  }   
+                });
+           }
+           else
+           { 
+              callback("Error : Activity list is empty");  
+           }
+         }).catch(function(err)
+          {
+             
+             console.log("Value not found" + err);
+              logger.debug("MasterControl activity : Activity list is empty");
+              callback("Error : Activity master list is empty");  
+          });
+      }
+    });
+ };        
 
 //This function will refresh the master list in Redis cache.
 exports.refreshMasterListJson = function(req, res) 
@@ -173,20 +285,20 @@ function createMasterList(req, res)
                                                                                           if(!err)
                                                                                           {
                                                                                             client.set('masterData', masterList);
-                                                                                            client.expire('masterData', 3600);
-                                                                                            res.send({message: JSON.parse(masterList)});
+                                                                                            client.expire('masterData', propertyFile.redisExpiryMasterSecs);
+                                                                                            res.send({status:'Success',message: JSON.parse(masterList)});
                                                                                           } 
                                                                                           else
                                                                                           {
                                                                                             console.log('could not write to redis')
-                                                                                            res.send({message: JSON.parse(masterList)});
+                                                                                            res.send({status:'Error',message: JSON.parse(masterList)});
                                                                                           }   
                                                                                         });                                                                                      
                                                                                       
                                                                                       }
                                                                                       catch(err)
                                                                                       {
-                                                                                        res.send({message: "Error : Master JSON is blank " + err});
+                                                                                        res.send({status:'Error',message: "Error : Master JSON is blank " + err});
                                                                                       }
                                                                                     }
                                                                                     else
@@ -262,7 +374,7 @@ function createMasterList(req, res)
           
           if(masterList == "")
           {
-            res.send({message:"Error : Master JSON is blank"})
+            res.send({status:'Error',message:"Error : Master JSON is blank"})
           } 
       }
     );

@@ -2,14 +2,10 @@ var mongoose = require("mongoose");
 //Schema for storing user secrets
 var relationSchema = mongoose.Schema;
 
-//Create the User collection that will save the user details.
-//This function will also add a default superuser entry.	
+//Create the User tree collections and save the relationship for the tree.
 var relations = new relationSchema({
-	hooksForUserId: {type: Number, required:true, unique:true, index:true},	
-	family: [{userId:Number,archivedUserId:Number,treeLevel:Number,relation:String,color:String,approved:{type:Boolean,default:true}}],
-	friends: [{userId:Number,treeLevel:Number,relation:String,color:String}],
-	organization: [{userId:Number,treeLevel:Number,relation:String,color:String}],	
-	status:{type:Boolean, default:true},
+	hooksForUserId: {type: String, required:true, unique:true, index:true},
+	trees:[{treeName:String, relations:[{userId: String, treeLevel:Number, relation:String, color:String, approved: {type:Boolean, required:true}}],status:{type:Boolean, default:true}}],	
 	createdDate: {type:Date, default:Date.now}
 });
 module.exports = mongoose.model('RelationsHook',relations,'RelationCollection');

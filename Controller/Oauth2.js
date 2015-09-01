@@ -159,7 +159,10 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectUri, ca
 		            return callback({}); 
               }
               
-            });         
+            }).catch(function(err){
+                logger.debug("Auth2 Exch - Error while adding token" + err);
+                return callback(err); 
+              });         
             
          }).catch(function(err){
            logger.debug("Auth2 Exch - Error while find code" + err);

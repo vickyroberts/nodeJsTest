@@ -4,7 +4,7 @@ var floatMessageSchema = mongoose.Schema;
 
 //Create the Floats message collection that will save the messages.
 var messageCollect = new floatMessageSchema({
-	floatId: {type: Number, required:true, unique:true, index:true},	
+	floatId: {type: mongoose.Schema.Types.ObjectId, required:true, unique:true},	
 	floatType: {type: String, required:true, index:true, default:"message"},
 	authorId: {type: String, required:true, index:true},
 	title: {type: String, required:true, index:true},

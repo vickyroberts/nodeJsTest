@@ -4,7 +4,7 @@ var floatNewsSchema = mongoose.Schema;
 
 //Create the Floats news collection that will save the news.
 var newsCollect = new floatNewsSchema({
-	floatId: {type: Number, required:true, unique:true, index:true},	
+	floatId: {type: mongoose.Schema.Types.ObjectId, required:true, unique:true},	
 	floatType: {type: String, required:true, index:true, default:"news"},
 	authorId: {type: String, required:true, index:true},
 	title: {type: String, required:true, index:true},

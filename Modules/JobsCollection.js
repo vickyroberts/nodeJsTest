@@ -4,7 +4,7 @@ var floatJobsSchema = mongoose.Schema;
 
 //Create the Floats message collection that will save the jobs.
 var jobsCollect = new floatJobsSchema({
-	floatId: {type: Number, required:true, unique:true, index:true},	
+	floatId: {type: mongoose.Schema.Types.ObjectId, required:true, unique:true},	
 	floatType: {type: String, required:true, index:true, default:"job"},
 	authorId: {type: String, required:true, index:true},
 	name: {type: String, required:true, index:true},
