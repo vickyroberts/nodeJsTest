@@ -16,6 +16,13 @@ router.post('/newTree', relationController.addNewTree);
 //Add the tree name
 router.post('/newMember', relationController.postNewMemberRegister);
 
+//Add the tree name
+router.post('/searchMember', relationController.searchExistingMembers);
+
+//Add the tree name
+router.post('/deleteMembers', relationController.deleteMembersData);
+
+
 /*//Login user
 router.route('/newTreeAuth')
     .post(authController.isAuthenticated, relationController.addNewTree);

@@ -67,6 +67,7 @@ exports.postNewMemberRegister = function(req, res) {
     }
 };
 
+
 //Create record for user - security and details in PG db.
 function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName, pLastName, pGender, pAccountType, pTreeLevel, pTreeName, pschemaName)
 {
@@ -93,7 +94,7 @@ function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName,
              if(err)
              {
                 console.log("Error while verifying user " + err);
-                logger.debug("UserControl register : Error while verifying user = " + err);
+                logger.debug("Relation register : Error while verifying user = " + err);
                 res.json({status:'Error',message:"Error while verifying user"}); 
              }   
              else
@@ -141,7 +142,7 @@ function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName,
                           {
                             var oldPasswordJson = '{"oldpasswords":["'+secreateInfo.password+'"]}';
                             clientConn.query("INSERT INTO "+pschemaName+".tbusersecurity (userid, username, password, extid, oldpasswords, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING extid",
-                            [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), oldPasswordJson, 0], function(err, result){
+                            [String(secreateInfo.userId), String(secreateInfo.userName), String(secreateInfo.password), String(secreateInfo.extId), oldPasswordJson, -1], function(err, result){
                               if(err)
                               {
                                 console.log("Error while inserting user secrets " + err);
@@ -154,7 +155,7 @@ function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName,
                                 if(result && result.rows && result.rows.length > 0)
                                 {
                                   var extUserId = result.rows[0].extid;
-                                  clientConn.query("INSERT INTO "+pschemaName+".tbuserdetails (userid, firstname, lastname, gender, accounttype) VALUES ($1,$2,$3,$4,$5,$6) RETURNING userid",
+                                  clientConn.query("INSERT INTO "+pschemaName+".tbuserdetails (userid, firstname, lastname, gender, accounttype) VALUES ($1,$2,$3,$4,$5) RETURNING userid",
                                   [String(secreateInfo.userId), pFirstName, pLastName, pGender, pAccountType], function(err, result){
                                     if(err)
                                     {
@@ -164,8 +165,7 @@ function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName,
                                       res.json({status:'Error',message:"Error while inserting user details"}); 
                                     }
                                     else
-                                    {
-                                      res.status(200);
+                                    {                                      
                                       console.log("User records saved successfully");
                                       logger.debug("Success : User records saved successfully");
                                       
@@ -174,9 +174,12 @@ function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName,
                                         {
                                           var relationJson = {userId: secreateInfo.userId, treeLevel:pTreeLevel, relation:pRelation, color:propertyFile.defaultTreeColor};
                                           //Update the new tree to the existing user relationship collection.
-                                          relationModule.updateAsync({hooksForUserId:req.session.ruid, 'trees.treeName': pTreeName},{"$set":{"trees.$.relations":[relationJson]}},
+                                          //relationModule.updateAsync({hooksForUserId:req.session.ruid, 'trees.treeName': pTreeName},{"$set":{"trees.$.relations":[relationJson]}},
+                                          //  { multi: false }).then(function(result){
+                                          relationModule.updateAsync({hooksForUserId:req.session.ruid, 'trees.treeName': pTreeName},{$pushAll:{"trees.$.relations":[relationJson]}},
                                             { multi: false }).then(function(result){
                                               logger.debug('Update success');
+                                              res.status(200);
                                               res.json({status:'Success',message:'Relation added successfully'});
                                             }).catch(function(err)
                                             {
@@ -212,14 +215,14 @@ function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName,
                       clientConn.end();
                       console.log("Error while inserting user info");
                       logger.debug("UserControl register : Error while inserting user info");
-                      res.json({status:'Error',message:"Error : Error while inserting user info"}); 
+                      res.json({status:'Error',message:"Error : Error while inserting user info",errInfo:err}); 
                     }
                     
                   }).catch(function(err)
                       {
                         console.log("Error while saving the records " + err);
                         logger.debug("CreateCollectionsAndRecordPG : Error while saving user info" + err);
-                        res.json({status:'Error',message:"Error : Error while saving user info"});                 
+                        res.json({status:'Error',message:"Error : Error while saving user info",errInfo:err});                 
                       });
                   
                }
@@ -231,6 +234,7 @@ function CreateCollectionsAndRecordPG(res, req, pEmailId, pRelation, pFirstName,
           clientConn.end();
            console.log("ClientSave - Error while saving user PG" + err);
            logger.debug("ClientSave - Error while saving user PG" + err);
+           res.json({status:'Error',message:"ClientSave - Error while saving user PG",errInfo:err});
         }
       }
     });                      
@@ -295,5 +299,275 @@ exports.addNewTree = function(req, res) {
       res.json({status:'Error', message:'Error while searching user tree '+err});
     });
   }
+  else
+  {
+    res.status(400);
+    res.json({status:'Error',message:"Parameter tree name is not available or user is not logged in"});
+  }
 };
 
+//Search existing members for adding in tree.
+exports.searchExistingMembers = function(req, res) 
+{  
+  
+    if(req.body && req.session.ruid)
+    {        
+      res.json({message: "SEARCH ON NAME PENDING"});
+      conn.redisClientObject(null, null, function(err, client)
+      {
+        if(!err)
+        {
+          client.get('usermembers_'+req.session.ruid, function(err, result)
+            {
+              if(err || !result)
+              {
+                getMemberList(req,res);                 
+              }
+              else
+              {
+                res.json({message: result});
+              }
+            });          
+        } 
+        else
+        {
+          getMemberList(req,res);          
+        }
+      });      
+    }
+    else
+    {
+      res.status(400);
+      res.json({status:'Error',message:"User not logged in"});
+    }
+    
+};
+
+//Search existing members for adding in tree.
+exports.getUserTreeDetails = function(req, res) 
+{
+  
+};
+
+//This function will delete the user's members list from Redis cache.
+exports.deleteMembersData = function(req, res) 
+{
+   //Check if the values are available in Redis cache else regenerate the list.
+    conn.redisClientObject(null, null, function(err, client)
+    {
+      if(!err)
+      {
+        client.del('usermembers_'+req.session.ruid, function(err, result)
+          {
+          });
+      }
+    });
+};
+
+//This function will get user's members list from the mongo and users details from DB.
+function getMemberList(req, res)
+{
+  var schemaName = conn.getDBSchema("");
+  getFamilyUserIds(req.session.ruid, function(err, famIds){
+  if(err)
+  {
+    logger.debug('Error while searching members '+err);
+    console.log('Error while searching members '+err);
+    res.json({status:'Error', message:'Error while searching members '+err}); 
+  } 
+  else
+  {
+    var arrFamIds = famIds.split(',');
+    getMembersMember(arrFamIds, famIds, 0, function(err, allMembers){
+      if(err)
+      {
+        logger.debug('Error while searching members of member '+err);
+        console.log('Error while searching members of member '+err);
+        res.json({status:'Error', message:'Error while searching members of member '+err});
+      }
+      else
+      {
+        conn.getPGConnection(function(err, clientConn)
+        {    
+          if(err)
+          {
+            console.log("ClientSave - Error while connection PG" + err);
+            logger.debug("ClientSave - Error while connection PG" + err);
+          }
+          else
+          {
+            try
+            {         
+              //Check if user name exists.   
+              clientConn.query("SELECT firstname,lastname,gender,city,state,country,profpicfilename,filetype,filepath FROM "+schemaName+".tbuserdetails ud LEFT JOIN "+schemaName+".tbusersecurity us on ud.userid = us.userid WHERE us.status in (-1,1) AND ud.userid in ("+allMembers+")", 
+                [], function(err, result)
+              {
+                if(err)
+                {
+                    console.log("Error while getting the user list " + err);
+                    logger.debug("Relation members : Error while getting the user list = " + err);
+                    res.json({status:'Error',message:"Error while getting the user list"}); 
+                }   
+                else
+                {
+                  if(result && result.rows && result.rows.length > 0)
+                  {
+                    var memberList = [];
+                    for(var memCount=0;memCount<result.rows.length;memCount++)
+                    {
+                      var memberDetails = {};
+                      memberDetails.firstName = result.rows[memCount].firstname; 
+                      memberDetails.lastName = result.rows[memCount].lastname;
+                      memberDetails.gender = result.rows[memCount].gender;
+                      memberDetails.city = result.rows[memCount].city;
+                      memberDetails.state = result.rows[memCount].state;
+                      memberDetails.country = result.rows[memCount].country;
+                      memberDetails.profPic = result.rows[memCount].profpicfilename;
+                      memberList.push(memberDetails);
+                    }                        
+                    
+                    //Cache the values in redis memory
+                    if(memberList.length > 0)
+                    {
+                      try
+                      {                           
+                        conn.redisClientObject(null, null, function(err, client)
+                        {
+                          if(!err)
+                          {
+                            client.set('usermembers_'+req.session.ruid, JSON.stringify(memberList));
+                            client.expire('usermembers_'+req.session.ruid, propertyFile.redisExpiryMembersSecs);
+                            res.json({status:'Success',message: JSON.stringify(memberList)});
+                          } 
+                          else
+                          {
+                            console.log('Could not write to redis')
+                            res.json({status:'Error',message: memberList});
+                          }   
+                        });                                                                                      
+                      
+                      }
+                      catch(err)
+                      {
+                        res.send({status:'Error',message: "Error : Master JSON is blank " + err});
+                      }
+                    }
+                    else
+                    {
+                       logger.debug("Relation members : No members found");
+                       res.json({status:'Error',message:"No members found"});
+                    }                     
+                  }
+                  else
+                  {
+                      logger.debug("Relation members : No members found");
+                      res.json({status:'Error',message:"No members found"}); 
+                  }
+                }
+              });
+            }
+            catch(err)
+            {
+              console.log("Error while verifying user " + err);
+              logger.debug("Relation members : Error while getting the user list = " + err);
+              res.json({status:'Error',message:"Error while getting the user list"}); 
+            }
+          }
+        });
+      }
+    });          
+  } 
+});
+}
+
+//This function will get all the members ids for the user (user id passed).
+//userId : get members for the userid passed.
+//callback : callback function which will have 2 parameters, error and userids of members .
+function getFamilyUserIds(userId, callback)
+{
+    if(userId)
+    {  
+      relationModule.findOne({ hooksForUserId: userId }).then(function (relation) {
+        if(relation && relation.trees && relation.trees.length > 0)
+        {          
+          var userDetails;
+          for(var treeCount=0;treeCount<relation.trees.length;treeCount++)
+          {
+            if(relation.trees[treeCount].relations && relation.trees[treeCount].relations.length > 0)
+            {
+              for(var relCount=0;relCount<relation.trees[treeCount].relations.length;relCount++)
+              {
+                userDetails = (userDetails) ? userDetails + ",'" + relation.trees[treeCount].relations[relCount].userId+"'" : 
+                "'" +relation.trees[treeCount].relations[relCount].userId+"'";
+                //userDetails = (userDetails) ? userDetails + "," + relation.trees[treeCount].relations[relCount].userId : 
+                //relation.trees[treeCount].relations[relCount].userId;
+              }
+            }
+            
+            if(treeCount == (relation.trees.length - 1))
+            {
+              callback(null, userDetails);
+            }
+          }          
+        }
+        else
+        {
+          var error = new Error("No records found for members.");     
+          callback(error);
+        }
+      }).catch(function(err){
+        callback(err);        
+      });
+    }
+    else
+    { 
+      var error = new Error("User not logged in");     
+      callback(error);
+    }
+}
+
+//This function will return all members of the user ids passed.
+//arrUserIds : Array of user ids passed.
+//userDetails : String which will contain all the user's members in comma separated.
+//callback : callback function.  
+function getMembersMember(arrUserIds, userDetails, count, callback)
+{
+  if(arrUserIds && arrUserIds.length > 0)
+    {  
+      relationModule.findOne({ hooksForUserId: arrUserIds[count] }).then(function (relation) {
+        if(relation && relation.trees && relation.trees.length > 0)
+        {
+          for(var treeCount=0;treeCount<relation.trees.length;treeCount++)
+          {
+            if(relation.trees[treeCount].relations && relation.trees[treeCount].relations.length > 0)
+            {
+              for(var relCount=0;relCount<relation.trees[treeCount].relations.length;relCount++)
+              {
+                userDetails = (userDetails) ? userDetails + ",'" + relation.trees[treeCount].relations[relCount].userId + "'" : 
+                "'" + relation.trees[treeCount].relations[relCount].userId + "'";
+              }
+            }
+          }
+        }
+        
+        if(count == (arrUserIds.length - 1))
+        {                  
+          callback(null, userDetails);
+        }
+        else
+        {
+          count++;
+          getMembersMember(arrUserIds, userDetails, count, callback);
+        }
+        
+      }).catch(function(err){
+        callback(err);
+        
+      });
+    }
+    else
+    { 
+      var error = new Error("User not logged in");     
+      callback(error);
+    }                                                                             
+}

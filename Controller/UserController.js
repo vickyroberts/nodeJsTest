@@ -783,7 +783,7 @@ exports.updateEducationDetails = function(req, res) {
 };  
 
 // Update work information for the registered users.
-//Status 0=inactive, 1=active, 2=rip and 3=disabled
+//Status -1=inactive user as family member, 0=inactive, 1=active, 2=rip and 3=disabled
 exports.updateUserStatus = function(req, res) {  
   // Set the client properties that came from the POST data
   var userId = (req.session.userid)?req.session.userid : req.query.uid;
